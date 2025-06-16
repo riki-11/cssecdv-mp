@@ -19,11 +19,11 @@ public class Main {
     public static void main(String[] args) {
         new Main().init();
     }
-    
+
     public void init(){
         // Initialize a driver object
         sqlite = new SQLite();
-
+        sqlite.testDriver();
 //        // Create a database
 //        sqlite.createNewDatabase();
 //        
@@ -104,5 +104,7 @@ public class Main {
         Frame frame = new Frame();
         frame.init(this);
     }
+
+
     
 }

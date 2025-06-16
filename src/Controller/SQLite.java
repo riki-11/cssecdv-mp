@@ -4,18 +4,23 @@ import Model.History;
 import Model.Logs;
 import Model.Product;
 import Model.User;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.Statement;
+
+import java.sql.*;
 import java.util.ArrayList;
 
 public class SQLite {
     
     public int DEBUG_MODE = 0;
     String driverURL = "jdbc:sqlite:" + "database.db";
-    
+    public void testDriver() {
+        try {
+            Class.forName("org.sqlite.JDBC");
+            System.out.println("SQLite JDBC driver loaded successfully!");
+        } catch (ClassNotFoundException e) {
+            System.err.println("SQLite JDBC driver not found: " + e.getMessage());
+            System.err.println("Please add sqlite-jdbc jar to your classpath");
+        }
+    }
     public void createNewDatabase() {
         try (Connection conn = DriverManager.getConnection(driverURL)) {
             if (conn != null) {
@@ -178,22 +183,22 @@ public class SQLite {
             System.out.print(ex);
         }
     }
-    
+
+    // Improved addUser method with PreparedStatement (more secure)
     public void addUser(String username, String password) {
-        String sql = "INSERT INTO users(username,password) VALUES('" + username + "','" + password + "')";
-        
+        String sql = "INSERT INTO users(username,password) VALUES(?,?)";
+
         try (Connection conn = DriverManager.getConnection(driverURL);
-            Statement stmt = conn.createStatement()){
-            stmt.execute(sql);
-            
-//      PREPARED STATEMENT EXAMPLE
-//      String sql = "INSERT INTO users(username,password) VALUES(?,?)";
-//      PreparedStatement pstmt = conn.prepareStatement(sql)) {
-//      pstmt.setString(1, username);
-//      pstmt.setString(2, password);
-//      pstmt.executeUpdate();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, username);
+            pstmt.setString(2, password);
+            pstmt.executeUpdate();
+
+            System.out.println("User '" + username + "' added successfully.");
+
         } catch (Exception ex) {
-            System.out.print(ex);
+            System.err.println("Error adding user: " + ex.getMessage());
         }
     }
     
