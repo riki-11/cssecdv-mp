@@ -104,24 +104,6 @@ public class Login extends javax.swing.JPanel {
             JOptionPane.showMessageDialog(this, "Login successful! Welcome " + username, "Success", JOptionPane.INFORMATION_MESSAGE);
             int role = user.getRole();
             frame.hideButtons(role);
-
-            switch(role) {
-                case 5:
-                    frame.contentView.show(frame.Content, "adminHomePnl");
-                    break;
-                case 4:
-                    frame.contentView.show(frame.Content, "managerHomePnl");
-                    break;
-                case 3:
-                    frame.contentView.show(frame.Content, "staffHomePnl");
-                    break;
-                case 2:
-                    frame.contentView.show(frame.Content, "clientHomePnl");
-                    break;
-                default:
-                    JOptionPane.showMessageDialog(this, "Unknown user role.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-            }
             frame.mainNav();
         } else {
             JOptionPane.showMessageDialog(this, "Invalid username or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
