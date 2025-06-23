@@ -2,6 +2,8 @@ package View;
 
 import Controller.SQLite;
 import Model.User;
+import Service.PasswordStrengthChecker;
+import dto.PasswordCheckResult;
 
 import javax.swing.*;
 
@@ -126,10 +128,11 @@ public class Register extends javax.swing.JPanel {
             return;
         }
 
-        // Basic password strength check
-        if (password.length() < 8) {
+        PasswordCheckResult passwordResult = PasswordStrengthChecker.checkStrength(password);
+
+        if(!passwordResult.isValid) {
             javax.swing.JOptionPane.showMessageDialog(this,
-                    "Password must be at least 8 characters long.",
+                    passwordResult.message,
                     "Registration Error",
                     javax.swing.JOptionPane.ERROR_MESSAGE);
 
