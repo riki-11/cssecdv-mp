@@ -1,10 +1,14 @@
 package View;
 
-import javax.swing.JPasswordField;
+import Controller.SQLite;
+import Model.User;
+
+import javax.swing.*;
 
 public class Register extends javax.swing.JPanel {
 
     public Frame frame;
+    private SQLite sqLite = new SQLite();
 
     public Register() {
         initComponents();
@@ -139,14 +143,32 @@ public class Register extends javax.swing.JPanel {
         passwordFld.setText("");
         confpassFld.setText("");
 
-        frame.registerAction(username, password, confirmPassword);
+        User user = sqLite.getUserByUsername(username);
 
-        javax.swing.JOptionPane.showMessageDialog(this,
-                "Registration successful! You can now login.",
-                "Success",
-                javax.swing.JOptionPane.INFORMATION_MESSAGE);
+        if(user != null) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "Unsuccessful Registration, Username is taken.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            usernameFld.setText("");
+        } else {
+            //TODO hash password
+            boolean result = frame.registerAction(username, password, confirmPassword);
 
-        frame.loginNav();
+            if(result) {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                        "Registration successful! You can now login.",
+                        "Success",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                        "Unsuccessful Registration, DB error",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+
+            frame.loginNav();
+        }
     }//GEN-LAST:event_registerBtnActionPerformed
 
     private void backBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_backBtnActionPerformed
