@@ -26,9 +26,7 @@ public class SQLite {
     private static final int KEY_LENGTH = 256;
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
 
-    /**
-     * Generate  random salt
-     */
+    // Generate  random salt
     private byte[] generateSalt() {
         SecureRandom random = new SecureRandom();
         byte[] salt = new byte[16];
@@ -36,9 +34,7 @@ public class SQLite {
         return salt;
     }
 
-    /**
-     * Hash a password using PBKDF2
-     */
+    // Hash a password using PBKDF2
     private String hashPassword(String password) {
         try {
             byte[] salt = generateSalt();
@@ -57,13 +53,9 @@ public class SQLite {
         }
     }
 
-    /**
-     * Verify a password against its hash
-     */
+    // Verify a password against its hash
     private boolean verifyPassword(String password, String storedHash) {
         try {
-            System.out.println("Current password: " + password);
-            System.out.println("Stored Hash: " + storedHash);
             byte[] combined = Base64.getDecoder().decode(storedHash);
 
             // Extract salt and hash
@@ -77,8 +69,6 @@ public class SQLite {
             SecretKeyFactory factory = SecretKeyFactory.getInstance(ALGORITHM);
             byte[] testHash = factory.generateSecret(spec).getEncoded();
 
-            System.out.println("Current Hash: " + Arrays.toString(hash) + "\nTest Hash: " + Arrays.toString(testHash));
-
             // Compare the hashes
             return slowEquals(hash, testHash);
         } catch (Exception e) {
@@ -86,9 +76,7 @@ public class SQLite {
         }
     }
 
-    /**
-     * Constant-time comparison to prevent timing attacks
-     */
+    // Constant-time comparison to prevent timing attacks
     private boolean slowEquals(byte[] a, byte[] b) {
         int diff = a.length ^ b.length;
         for (int i = 0; i < a.length && i < b.length; i++) {
@@ -414,7 +402,6 @@ public class SQLite {
 
     public User getUserByCredentials(String username, String password) {
         String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
-        System.out.println("INPUTTED PASSWORD: " + password);
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
