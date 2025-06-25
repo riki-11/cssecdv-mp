@@ -244,8 +244,9 @@ public class Frame extends javax.swing.JFrame {
         this.setVisible(true);
     }
     
-    public void mainNav(){
+    public void mainNav(int role){
         frameView.show(Container, "homePnl");
+        showPanel(role);
     }
     
     public void loginNav(){
@@ -278,6 +279,28 @@ public class Frame extends javax.swing.JFrame {
                 break;
             case 2:
                 clientBtn.setVisible(true);
+                break;
+        }
+    }
+
+    public void showPanel(int role) {
+        // Show the appropriate panel based on role and navigate to it
+        switch(role) {
+            case 5:
+                adminHomePnl.showPnl("home");
+                contentView.show(Content, "adminHomePnl");
+                break;
+            case 4:
+                managerHomePnl.showPnl("home");
+                contentView.show(Content, "managerHomePnl");
+                break;
+            case 3:
+                staffHomePnl.showPnl("home");
+                contentView.show(Content, "staffHomePnl");
+                break;
+            default:
+                clientHomePnl.showPnl("home");
+                contentView.show(Content, "clientHomePnl");
                 break;
         }
     }

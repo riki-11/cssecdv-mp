@@ -62,8 +62,6 @@ public class SQLite {
      */
     private boolean verifyPassword(String password, String storedHash) {
         try {
-            System.out.println("Current password: " + password);
-            System.out.println("Stored Hash: " + storedHash);
             byte[] combined = Base64.getDecoder().decode(storedHash);
 
             // Extract salt and hash
@@ -76,8 +74,6 @@ public class SQLite {
             PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
             SecretKeyFactory factory = SecretKeyFactory.getInstance(ALGORITHM);
             byte[] testHash = factory.generateSecret(spec).getEncoded();
-
-            System.out.println("Current Hash: " + Arrays.toString(hash) + "\nTest Hash: " + Arrays.toString(testHash));
 
             // Compare the hashes
             return slowEquals(hash, testHash);
