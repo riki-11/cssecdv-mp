@@ -7,11 +7,96 @@ import Model.User;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
 
 public class SQLite {
     
     public int DEBUG_MODE = 0;
     String driverURL = "jdbc:sqlite:" + "database.db";
+
+    // Password hashing configuration
+    private static final int ITERATIONS = 10000;
+    private static final int KEY_LENGTH = 256;
+    private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
+
+    /**
+     * Generate  random salt
+     */
+    private byte[] generateSalt() {
+        SecureRandom random = new SecureRandom();
+        byte[] salt = new byte[16];
+        random.nextBytes(salt);
+        return salt;
+    }
+
+    /**
+     * Hash a password using PBKDF2
+     */
+    private String hashPassword(String password) {
+        try {
+            byte[] salt = generateSalt();
+            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(ALGORITHM);
+            byte[] hash = factory.generateSecret(spec).getEncoded();
+
+            // Combine salt and hash, then encode to Base64
+            byte[] combined = new byte[salt.length + hash.length];
+            System.arraycopy(salt, 0, combined, 0, salt.length);
+            System.arraycopy(hash, 0, combined, salt.length, hash.length);
+
+            return Base64.getEncoder().encodeToString(combined);
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            throw new RuntimeException("Error hashing password", e);
+        }
+    }
+
+    /**
+     * Verify a password against its hash
+     */
+    private boolean verifyPassword(String password, String storedHash) {
+        try {
+            System.out.println("Current password: " + password);
+            System.out.println("Stored Hash: " + storedHash);
+            byte[] combined = Base64.getDecoder().decode(storedHash);
+
+            // Extract salt and hash
+            byte[] salt = new byte[16];
+            byte[] hash = new byte[combined.length - 16];
+            System.arraycopy(combined, 0, salt, 0, salt.length);
+            System.arraycopy(combined, salt.length, hash, 0, hash.length);
+
+            // Hash the provided password with the extracted salt
+            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(ALGORITHM);
+            byte[] testHash = factory.generateSecret(spec).getEncoded();
+
+            System.out.println("Current Hash: " + Arrays.toString(hash) + "\nTest Hash: " + Arrays.toString(testHash));
+
+            // Compare the hashes
+            return slowEquals(hash, testHash);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Constant-time comparison to prevent timing attacks
+     */
+    private boolean slowEquals(byte[] a, byte[] b) {
+        int diff = a.length ^ b.length;
+        for (int i = 0; i < a.length && i < b.length; i++) {
+            diff |= a[i] ^ b[i];
+        }
+        return diff == 0;
+    }
+
     public void testDriver() {
         try {
             Class.forName("org.sqlite.JDBC");
@@ -186,13 +271,14 @@ public class SQLite {
 
     // Improved addUser method with PreparedStatement (more secure)
     public boolean addUser(String username, String password) {
+        String hashedPassword = hashPassword(password);
         String sql = "INSERT INTO users(username,password) VALUES(?,?)";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            pstmt.setString(2, hashedPassword);
             pstmt.executeUpdate();
 
             System.out.println("User '" + username + "' added successfully.");
@@ -287,7 +373,8 @@ public class SQLite {
     }
     
     public void addUser(String username, String password, int role) {
-        String sql = "INSERT INTO users(username,password,role) VALUES('" + username + "','" + password + "','" + role + "')";
+        String hashedPassword = hashPassword(password);
+        String sql = "INSERT INTO users(username,password,role) VALUES('" + username + "','" + hashedPassword + "','" + role + "')";
         
         try (Connection conn = DriverManager.getConnection(driverURL);
             Statement stmt = conn.createStatement()){
@@ -326,25 +413,28 @@ public class SQLite {
     }
 
     public User getUserByCredentials(String username, String password) {
-        String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ? AND password = ?";
+        String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
+        System.out.println("INPUTTED PASSWORD: " + password);
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
-
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
-                return new User(rs.getInt("id"),
-                        rs.getString("username"),
-                        rs.getString("password"),
-                        rs.getInt("role"),
-                        rs.getInt("locked"));
+                String storedHashedPassword = rs.getString("password");
+
+                if (verifyPassword(password, storedHashedPassword)) {
+                    return new User(rs.getInt("id"),
+                            rs.getString("username"),
+                            storedHashedPassword,
+                            rs.getInt("role"),
+                            rs.getInt("locked"));
+                }
             }
         } catch (Exception ex) {
-            System.out.println(ex);
+            System.out.println("Error during authentication: " + ex.getMessage());
         }
         return null;
     }
