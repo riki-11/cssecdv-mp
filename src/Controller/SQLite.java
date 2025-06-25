@@ -26,9 +26,7 @@ public class SQLite {
     private static final int KEY_LENGTH = 256;
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
 
-    /**
-     * Generate  random salt
-     */
+    // Generate  random salt
     private byte[] generateSalt() {
         SecureRandom random = new SecureRandom();
         byte[] salt = new byte[16];
@@ -36,9 +34,7 @@ public class SQLite {
         return salt;
     }
 
-    /**
-     * Hash a password using PBKDF2
-     */
+    // Hash a password using PBKDF2
     private String hashPassword(String password) {
         try {
             byte[] salt = generateSalt();
@@ -57,9 +53,7 @@ public class SQLite {
         }
     }
 
-    /**
-     * Verify a password against its hash
-     */
+    // Verify a password against its hash
     private boolean verifyPassword(String password, String storedHash) {
         try {
             byte[] combined = Base64.getDecoder().decode(storedHash);
@@ -82,9 +76,7 @@ public class SQLite {
         }
     }
 
-    /**
-     * Constant-time comparison to prevent timing attacks
-     */
+    // Constant-time comparison to prevent timing attacks
     private boolean slowEquals(byte[] a, byte[] b) {
         int diff = a.length ^ b.length;
         for (int i = 0; i < a.length && i < b.length; i++) {
