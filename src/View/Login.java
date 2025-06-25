@@ -98,11 +98,12 @@ public class Login extends javax.swing.JPanel {
         }
 
         //TODO insert password hashing
-        User user = sqlite.getUser(username, password);
+        User user = sqlite.getUserByCredentials(username, password);
 
         if(user != null) {
             JOptionPane.showMessageDialog(this, "Login successful! Welcome " + username, "Success", JOptionPane.INFORMATION_MESSAGE);
-            //TODO redirect to the proper home page
+            int role = user.getRole();
+            frame.hideButtons(role);
             frame.mainNav();
         } else {
             JOptionPane.showMessageDialog(this, "Invalid username or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);

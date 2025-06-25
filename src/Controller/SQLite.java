@@ -185,7 +185,7 @@ public class SQLite {
     }
 
     // Improved addUser method with PreparedStatement (more secure)
-    public void addUser(String username, String password) {
+    public boolean addUser(String username, String password) {
         String sql = "INSERT INTO users(username,password) VALUES(?,?)";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -196,9 +196,11 @@ public class SQLite {
             pstmt.executeUpdate();
 
             System.out.println("User '" + username + "' added successfully.");
+            return true;
 
         } catch (Exception ex) {
             System.err.println("Error adding user: " + ex.getMessage());
+            return false;
         }
     }
     
@@ -323,7 +325,7 @@ public class SQLite {
         return product;
     }
 
-    public User getUser(String username, String password) {
+    public User getUserByCredentials(String username, String password) {
         String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ? AND password = ?";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -331,6 +333,29 @@ public class SQLite {
 
             pstmt.setString(1, username);
             pstmt.setString(2, password);
+
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return new User(rs.getInt("id"),
+                        rs.getString("username"),
+                        rs.getString("password"),
+                        rs.getInt("role"),
+                        rs.getInt("locked"));
+            }
+        } catch (Exception ex) {
+            System.out.println(ex);
+        }
+        return null;
+    }
+
+    public User getUserByUsername(String username) {
+        String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, username);
 
             ResultSet rs = pstmt.executeQuery();
 

@@ -212,7 +212,7 @@ public class Frame extends javax.swing.JFrame {
     private StaffHome staffHomePnl = new StaffHome();
     private ClientHome clientHomePnl = new ClientHome();
     
-    private CardLayout contentView = new CardLayout();
+    CardLayout contentView = new CardLayout();
     private CardLayout frameView = new CardLayout();
     
     public void init(Main controller){
@@ -256,13 +256,35 @@ public class Frame extends javax.swing.JFrame {
         frameView.show(Container, "registerPnl");
     }
     
-    public void registerAction(String username, String password, String confpass){
-        main.sqlite.addUser(username, password);
+    public boolean registerAction(String username, String password, String confpass){
+        return main.sqlite.addUser(username, password);
+    }
+
+    public void hideButtons(int role) {
+        adminBtn.setVisible(false);
+        managerBtn.setVisible(false);
+        staffBtn.setVisible(false);
+        clientBtn.setVisible(false);
+
+        switch(role) {
+            case 5:
+                adminBtn.setVisible(true);
+                break;
+            case 4:
+                managerBtn.setVisible(true);
+                break;
+            case 3:
+                staffBtn.setVisible(true);
+                break;
+            case 2:
+                clientBtn.setVisible(true);
+                break;
+        }
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JPanel Container;
-    private javax.swing.JPanel Content;
+    javax.swing.JPanel Content;
     private javax.swing.JPanel HomePnl;
     private javax.swing.JPanel Navigation;
     private javax.swing.JButton adminBtn;
