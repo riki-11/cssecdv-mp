@@ -410,7 +410,6 @@ public class SQLite {
 
     public User getUserByCredentials(String username, String password) {
         String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
-        System.out.println("INPUTTED PASSWORD: " + password);
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
