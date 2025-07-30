@@ -24,18 +24,15 @@ public class MgmtUser extends javax.swing.JPanel {
 
     public SQLite sqlite;
     public DefaultTableModel tableModel;
-    
-    public MgmtUser(SQLite sqlite) {
+    private int userRole;
+
+    public MgmtUser(SQLite sqlite, int userRole) {
         initComponents();
         this.sqlite = sqlite;
         tableModel = (DefaultTableModel)table.getModel();
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));
-        
-//        UNCOMMENT TO DISABLE BUTTONS
-//        editBtn.setVisible(false);
-//        deleteBtn.setVisible(false);
-//        lockBtn.setVisible(false);
-//        chgpassBtn.setVisible(false);
+
+        configureButtonVisibility(userRole);
     }
     
     public void init(){
@@ -62,7 +59,41 @@ public class MgmtUser extends javax.swing.JPanel {
         component.setHorizontalAlignment(javax.swing.JTextField.CENTER);
         component.setBorder(javax.swing.BorderFactory.createTitledBorder(new javax.swing.border.LineBorder(new java.awt.Color(0, 0, 0), 2, true), text, javax.swing.border.TitledBorder.CENTER, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 0, 12)));
     }
-    
+
+
+    private void configureButtonVisibility(int userRole) {
+        // User management permissions:
+        // 5 = Admin (full user management)
+        // 4 = Manager (limited user management)
+        // 3 = Staff (no user management)
+        // 2 = Client (no user management)
+
+        switch(userRole) {
+            case 5: // Admin - full user management
+                editRoleBtn.setVisible(true);
+                deleteBtn.setVisible(true);
+                lockBtn.setVisible(true);
+                chgpassBtn.setVisible(true);
+                break;
+
+            case 4: // Manager - limited user management (no role editing)
+                editRoleBtn.setVisible(false);
+                deleteBtn.setVisible(true);
+                lockBtn.setVisible(true);
+                chgpassBtn.setVisible(true);
+                break;
+
+            case 3: // Staff - no user management
+            case 2: // Client - no user management
+            default:
+                editRoleBtn.setVisible(false);
+                deleteBtn.setVisible(false);
+                lockBtn.setVisible(false);
+                chgpassBtn.setVisible(false);
+                break;
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always

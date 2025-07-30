@@ -21,18 +21,16 @@ public class MgmtProduct extends javax.swing.JPanel {
 
     public SQLite sqlite;
     public DefaultTableModel tableModel;
+    private int userRole;
     
-    public MgmtProduct(SQLite sqlite) {
+    public MgmtProduct(SQLite sqlite, int userRole) {
         initComponents();
         this.sqlite = sqlite;
         tableModel = (DefaultTableModel)table.getModel();
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));
 
-//        UNCOMMENT TO DISABLE BUTTONS
-//        purchaseBtn.setVisible(false);
-//        addBtn.setVisible(false);
-//        editBtn.setVisible(false);
-//        deleteBtn.setVisible(false);
+        // Hide management buttons based on role
+        configureButtonVisibility(userRole);
     }
 
     public void init(){
@@ -58,7 +56,53 @@ public class MgmtProduct extends javax.swing.JPanel {
         component.setHorizontalAlignment(javax.swing.JTextField.CENTER);
         component.setBorder(javax.swing.BorderFactory.createTitledBorder(new javax.swing.border.LineBorder(new java.awt.Color(0, 0, 0), 2, true), text, javax.swing.border.TitledBorder.CENTER, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 0, 12)));
     }
-    
+
+
+    private void configureButtonVisibility(int userRole) {
+        // Role definitions:
+        // 5 = Admin (full access)
+        // 4 = Manager (can manage products)
+        // 3 = Staff (can manage products)
+        // 2 = Client (can only purchase)
+
+        switch(userRole) {
+            case 5: // Admin - full access
+                addBtn.setVisible(true);
+                editBtn.setVisible(true);
+                deleteBtn.setVisible(true);
+                purchaseBtn.setVisible(true);
+                break;
+
+            case 4: // Manager - can manage products
+                addBtn.setVisible(true);
+                editBtn.setVisible(true);
+                deleteBtn.setVisible(true);
+                purchaseBtn.setVisible(true);
+                break;
+
+            case 3: // Staff - can manage products
+                addBtn.setVisible(true);
+                editBtn.setVisible(true);
+                deleteBtn.setVisible(true);
+                purchaseBtn.setVisible(true);
+                break;
+
+            case 2: // Client - can only purchase
+                addBtn.setVisible(false);
+                editBtn.setVisible(false);
+                deleteBtn.setVisible(false);
+                purchaseBtn.setVisible(true);
+                break;
+
+            default: // Any other role - minimal access
+                addBtn.setVisible(false);
+                editBtn.setVisible(false);
+                deleteBtn.setVisible(false);
+                purchaseBtn.setVisible(true);
+                break;
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
