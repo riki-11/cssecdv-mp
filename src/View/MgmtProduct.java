@@ -205,10 +205,49 @@ public class MgmtProduct extends javax.swing.JPanel {
 
         int result = JOptionPane.showConfirmDialog(null, message, "ADD PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
 
+
         if (result == JOptionPane.OK_OPTION) {
-            System.out.println(nameFld.getText());
-            System.out.println(stockFld.getText());
-            System.out.println(priceFld.getText());
+            try {
+                // Get the input values
+                String name = nameFld.getText().trim();
+                String stockText = stockFld.getText().trim();
+                String priceText = priceFld.getText().trim();
+
+                // Validate inputs
+                if (name.isEmpty() || stockText.isEmpty() || priceText.isEmpty()) {
+                    JOptionPane.showMessageDialog(null, "Please fill in all fields.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // Parse numeric values
+                int stock = Integer.parseInt(stockText);
+                double price = Double.parseDouble(priceText);
+
+                // Validate numeric ranges
+                if (stock < 0) {
+                    JOptionPane.showMessageDialog(null, "Stock cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                if (price < 0) {
+                    JOptionPane.showMessageDialog(null, "Price cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // Add product to database
+                sqlite.addProduct(name, stock, price);
+
+                // Refresh the table to show the new product
+                init();
+
+                // Show success message
+                JOptionPane.showMessageDialog(null, "Product '" + name + "' added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null, "Please enter valid numbers for stock and price.", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, "Error adding product: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }//GEN-LAST:event_addBtnActionPerformed
 
