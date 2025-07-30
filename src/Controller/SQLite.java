@@ -245,15 +245,27 @@ public class SQLite {
             System.out.print(ex);
         }
     }
-    
+
+    // Also update the existing addProduct method to use PreparedStatement for security
     public void addProduct(String name, int stock, double price) {
-        String sql = "INSERT INTO product(name,stock,price) VALUES('" + name + "','" + stock + "','" + price + "')";
-        
+        String sql = "INSERT INTO product(name, stock, price) VALUES(?, ?, ?)";
+
         try (Connection conn = DriverManager.getConnection(driverURL);
-            Statement stmt = conn.createStatement()){
-            stmt.execute(sql);
-        } catch (Exception ex) {
-            System.out.print(ex);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, name);
+            pstmt.setInt(2, stock);
+            pstmt.setDouble(3, price);
+
+            pstmt.executeUpdate();
+            System.out.println("Product added successfully: " + name);
+
+        } catch (SQLException ex) {
+            if (ex.getMessage().contains("UNIQUE constraint failed")) {
+                throw new RuntimeException("Product with name '" + name + "' already exists");
+            }
+            System.err.println("Error adding product: " + ex.getMessage());
+            throw new RuntimeException("Failed to add product", ex);
         }
     }
 
@@ -277,8 +289,54 @@ public class SQLite {
             return false;
         }
     }
-    
-    
+
+    public void updateProduct(String oldName, String newName, int stock, double price) {
+        String sql = "UPDATE product SET name = ?, stock = ?, price = ? WHERE name = ?";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, newName);
+            pstmt.setInt(2, stock);
+            pstmt.setDouble(3, price);
+            pstmt.setString(4, oldName);
+
+            int rowsAffected = pstmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                throw new SQLException("No product found with name: " + oldName);
+            }
+
+            System.out.println("Product updated successfully: " + oldName + " -> " + newName);
+
+        } catch (SQLException ex) {
+            System.err.println("Error updating product: " + ex.getMessage());
+            throw new RuntimeException("Failed to update product", ex);
+        }
+    }
+
+    public void deleteProduct(String name) {
+        String sql = "DELETE FROM product WHERE name = ?";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, name);
+
+            int rowsAffected = pstmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                throw new SQLException("No product found with name: " + name);
+            }
+
+            System.out.println("Product deleted successfully: " + name);
+
+        } catch (SQLException ex) {
+            System.err.println("Error deleting product: " + ex.getMessage());
+            throw new RuntimeException("Failed to delete product", ex);
+        }
+    }
+
     public ArrayList<History> getHistory(){
         String sql = "SELECT id, username, name, stock, timestamp FROM history";
         ArrayList<History> histories = new ArrayList<History>();

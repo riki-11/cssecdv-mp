@@ -252,36 +252,101 @@ public class MgmtProduct extends javax.swing.JPanel {
     }//GEN-LAST:event_addBtnActionPerformed
 
     private void editBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editBtnActionPerformed
+
         if(table.getSelectedRow() >= 0){
-            JTextField nameFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 0) + "");
-            JTextField stockFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 1) + "");
-            JTextField priceFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 2) + "");
+            try {
+                // Get current values from selected row
+                String currentName = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
+                String currentStock = tableModel.getValueAt(table.getSelectedRow(), 1).toString();
+                String currentPrice = tableModel.getValueAt(table.getSelectedRow(), 2).toString();
 
-            designer(nameFld, "PRODUCT NAME");
-            designer(stockFld, "PRODUCT STOCK");
-            designer(priceFld, "PRODUCT PRICE");
+                JTextField nameFld = new JTextField(currentName);
+                JTextField stockFld = new JTextField(currentStock);
+                JTextField priceFld = new JTextField(currentPrice);
 
-            Object[] message = {
-                "Edit Product Details:", nameFld, stockFld, priceFld
-            };
+                designer(nameFld, "PRODUCT NAME");
+                designer(stockFld, "PRODUCT STOCK");
+                designer(priceFld, "PRODUCT PRICE");
 
-            int result = JOptionPane.showConfirmDialog(null, message, "EDIT PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+                Object[] message = {
+                        "Edit Product Details:", nameFld, stockFld, priceFld
+                };
 
-            if (result == JOptionPane.OK_OPTION) {
-                System.out.println(nameFld.getText());
-                System.out.println(stockFld.getText());
-                System.out.println(priceFld.getText());
+                int result = JOptionPane.showConfirmDialog(null, message, "EDIT PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+
+                if (result == JOptionPane.OK_OPTION) {
+                    // Get the input values
+                    String newName = nameFld.getText().trim();
+                    String stockText = stockFld.getText().trim();
+                    String priceText = priceFld.getText().trim();
+
+                    // Validate inputs
+                    if (newName.isEmpty() || stockText.isEmpty() || priceText.isEmpty()) {
+                        JOptionPane.showMessageDialog(null, "Please fill in all fields.", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    // Parse numeric values
+                    int stock = Integer.parseInt(stockText);
+                    double price = Double.parseDouble(priceText);
+
+                    // Validate numeric ranges
+                    if (stock < 0) {
+                        JOptionPane.showMessageDialog(null, "Stock cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    if (price < 0) {
+                        JOptionPane.showMessageDialog(null, "Price cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    // Update product in database
+                    sqlite.updateProduct(currentName, newName, stock, price);
+
+                    // Refresh the table
+                    init();
+
+                    // Show success message
+                    JOptionPane.showMessageDialog(null, "Product updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null, "Please enter valid numbers for stock and price.", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, "Error updating product: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
+        } else {
+            JOptionPane.showMessageDialog(null, "Please select a product to edit.", "No Selection", JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_editBtnActionPerformed
 
-    private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteBtnActionPerformed
+    private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {
         if(table.getSelectedRow() >= 0){
-            int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete " + tableModel.getValueAt(table.getSelectedRow(), 0) + "?", "DELETE PRODUCT", JOptionPane.YES_NO_OPTION);
-            
+            String productName = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
+
+            int result = JOptionPane.showConfirmDialog(null,
+                    "Are you sure you want to delete '" + productName + "'?",
+                    "DELETE PRODUCT",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+
             if (result == JOptionPane.YES_OPTION) {
-                System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
+                try {
+                    // Delete product from database
+                    sqlite.deleteProduct(productName);
+
+                    // Refresh the table
+                    init();
+
+                    // Show success message
+                    JOptionPane.showMessageDialog(null, "Product '" + productName + "' deleted successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(null, "Error deleting product: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
+        } else {
+            JOptionPane.showMessageDialog(null, "Please select a product to delete.", "No Selection", JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_deleteBtnActionPerformed
 
