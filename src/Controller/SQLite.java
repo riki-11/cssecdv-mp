@@ -8,6 +8,7 @@ import Model.User;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Base64;
 
 import javax.crypto.SecretKeyFactory;
@@ -225,13 +226,21 @@ public class SQLite {
     }
     
     public void addHistory(String username, String name, int stock, String timestamp) {
-        String sql = "INSERT INTO history(username,name,stock,timestamp) VALUES('" + username + "','" + name + "','" + stock + "','" + timestamp + "')";
-        
+        String sql = "INSERT INTO history(username, name, stock, timestamp) VALUES(?, ?, ?, ?)";
+
         try (Connection conn = DriverManager.getConnection(driverURL);
-            Statement stmt = conn.createStatement()){
-            stmt.execute(sql);
-        } catch (Exception ex) {
-            System.out.print(ex);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, username);
+            pstmt.setString(2, name);
+            pstmt.setInt(3, stock);
+            pstmt.setString(4, timestamp);
+
+            pstmt.executeUpdate();
+
+        } catch (SQLException ex) {
+            System.err.println("Error adding to history: " + ex.getMessage());
+            throw new RuntimeException("Failed to add to history", ex);
         }
     }
     
@@ -266,27 +275,6 @@ public class SQLite {
             }
             System.err.println("Error adding product: " + ex.getMessage());
             throw new RuntimeException("Failed to add product", ex);
-        }
-    }
-
-    // Improved addUser method with PreparedStatement (more secure)
-    public boolean addUser(String username, String password) {
-        String hashedPassword = hashPassword(password);
-        String sql = "INSERT INTO users(username,password) VALUES(?,?)";
-
-        try (Connection conn = DriverManager.getConnection(driverURL);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, username);
-            pstmt.setString(2, hashedPassword);
-            pstmt.executeUpdate();
-
-            System.out.println("User '" + username + "' added successfully.");
-            return true;
-
-        } catch (Exception ex) {
-            System.err.println("Error adding user: " + ex.getMessage());
-            return false;
         }
     }
 
@@ -334,6 +322,27 @@ public class SQLite {
         } catch (SQLException ex) {
             System.err.println("Error deleting product: " + ex.getMessage());
             throw new RuntimeException("Failed to delete product", ex);
+        }
+    }
+
+    // Improved addUser method with PreparedStatement (more secure)
+    public boolean addUser(String username, String password) {
+        String hashedPassword = hashPassword(password);
+        String sql = "INSERT INTO users(username,password) VALUES(?,?)";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, username);
+            pstmt.setString(2, hashedPassword);
+            pstmt.executeUpdate();
+
+            System.out.println("User '" + username + "' added successfully.");
+            return true;
+
+        } catch (Exception ex) {
+            System.err.println("Error adding user: " + ex.getMessage());
+            return false;
         }
     }
 
@@ -398,7 +407,101 @@ public class SQLite {
         }
         return products;
     }
-    
+
+    public Product getProduct(String name){
+        String sql = "SELECT name, stock, price FROM product WHERE name='" + name + "';";
+        Product product = null;
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)){
+            product = new Product(rs.getString("name"),
+                    rs.getInt("stock"),
+                    rs.getFloat("price"));
+        } catch (Exception ex) {
+            System.out.print(ex);
+        }
+        return product;
+    }
+
+    public void processPurchase(String productName, int quantity, String username) {
+        Connection conn = null;
+        try {
+            conn = DriverManager.getConnection(driverURL);
+            conn.setAutoCommit(false); // Start transaction
+
+            // First, get current product info
+            Product product = getProduct(productName);
+            if (product == null) {
+                throw new SQLException("Product not found: " + productName);
+            }
+
+            // Check if sufficient stock
+            if (product.getStock() < quantity) {
+                throw new SQLException("Insufficient stock. Available: " + product.getStock() + ", Requested: " + quantity);
+            }
+
+            // Calculate new stock
+            int newStock = product.getStock() - quantity;
+
+            // Add to purchase history
+            addHistory(username, productName, quantity, new Timestamp(new Date().getTime()).toString());
+
+            if (newStock <= 0) {
+                // Remove product if stock reaches 0
+                deleteProduct(productName);
+                System.out.println("Product '" + productName + "' removed from inventory (stock depleted)");
+            } else {
+                // Update product stock
+                updateProductStock(productName, newStock);
+                System.out.println("Updated stock for '" + productName + "': " + newStock + " remaining");
+            }
+
+            conn.commit(); // Commit transaction
+            System.out.println("Purchase processed successfully: " + quantity + " x " + productName + " by " + username);
+
+        } catch (SQLException ex) {
+            try {
+                if (conn != null) {
+                    conn.rollback(); // Rollback on error
+                }
+            } catch (SQLException rollbackEx) {
+                System.err.println("Error during rollback: " + rollbackEx.getMessage());
+            }
+            System.err.println("Error processing purchase: " + ex.getMessage());
+            throw new RuntimeException("Purchase failed: " + ex.getMessage(), ex);
+        } finally {
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (SQLException ex) {
+                System.err.println("Error closing connection: " + ex.getMessage());
+            }
+        }
+    }
+
+    public void updateProductStock(String name, int newStock) {
+        String sql = "UPDATE product SET stock = ? WHERE name = ?";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, newStock);
+            pstmt.setString(2, name);
+
+            int rowsAffected = pstmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                throw new SQLException("No product found with name: " + name);
+            }
+
+        } catch (SQLException ex) {
+            System.err.println("Error updating product stock: " + ex.getMessage());
+            throw new RuntimeException("Failed to update stock", ex);
+        }
+    }
+
     public ArrayList<User> getUsers(){
         String sql = "SELECT id, username, password, role, locked FROM users";
         ArrayList<User> users = new ArrayList<User>();
@@ -441,21 +544,6 @@ public class SQLite {
         } catch (Exception ex) {
             System.out.print(ex);
         }
-    }
-    
-    public Product getProduct(String name){
-        String sql = "SELECT name, stock, price FROM product WHERE name='" + name + "';";
-        Product product = null;
-        try (Connection conn = DriverManager.getConnection(driverURL);
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql)){
-            product = new Product(rs.getString("name"),
-                                   rs.getInt("stock"),
-                                   rs.getFloat("price"));
-        } catch (Exception ex) {
-            System.out.print(ex);
-        }
-        return product;
     }
 
     public User getUserByCredentials(String username, String password) {

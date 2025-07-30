@@ -32,10 +32,10 @@ public class ManagerHome extends javax.swing.JPanel {
         initComponents();
     }
     
-    public void init(SQLite sqlite){
+    public void init(SQLite sqlite, String username){
         mgmtHistory = new MgmtHistory(sqlite);
         mgmtLogs = new MgmtLogs(sqlite);
-        mgmtProduct = new MgmtProduct(sqlite, 4);
+        mgmtProduct = new MgmtProduct(sqlite, 4, username);
         mgmtUser = new MgmtUser(sqlite, 4);
     
         Content.setLayout(contentView);
@@ -190,8 +190,7 @@ public class ManagerHome extends javax.swing.JPanel {
         logsBtn.setForeground(Color.red);
         contentView.show(Content, "mgmtLogs");
     }//GEN-LAST:event_logsBtnActionPerformed
-    
-    
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JPanel Content;

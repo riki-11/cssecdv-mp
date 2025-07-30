@@ -103,7 +103,7 @@ public class Login extends javax.swing.JPanel {
             JOptionPane.showMessageDialog(this, "Login successful! Welcome " + username, "Success", JOptionPane.INFORMATION_MESSAGE);
             int role = user.getRole();
             frame.hideButtons(role);
-            frame.mainNav(role);
+            frame.mainNav(role, username);
         } else {
             JOptionPane.showMessageDialog(this, "Invalid username or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
         }

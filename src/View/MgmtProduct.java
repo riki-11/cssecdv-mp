@@ -22,10 +22,13 @@ public class MgmtProduct extends javax.swing.JPanel {
     public SQLite sqlite;
     public DefaultTableModel tableModel;
     private int userRole;
+    private String currentUsername;
     
-    public MgmtProduct(SQLite sqlite, int userRole) {
+    public MgmtProduct(SQLite sqlite, int userRole, String username) {
         initComponents();
         this.sqlite = sqlite;
+        this.currentUsername = username;
+        this.userRole = userRole;
         tableModel = (DefaultTableModel)table.getModel();
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));
 
@@ -47,6 +50,8 @@ public class MgmtProduct extends javax.swing.JPanel {
                 products.get(nCtr).getStock(), 
                 products.get(nCtr).getPrice()});
         }
+
+        configureButtonVisibility(userRole);
     }
     
     public void designer(JTextField component, String text){
@@ -219,18 +224,101 @@ public class MgmtProduct extends javax.swing.JPanel {
 
     private void purchaseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_purchaseBtnActionPerformed
         if(table.getSelectedRow() >= 0){
-            JTextField stockFld = new JTextField("0");
-            designer(stockFld, "PRODUCT STOCK");
+            try {
+                // Get selected product information
+                String productName = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
+                int availableStock = Integer.parseInt(tableModel.getValueAt(table.getSelectedRow(), 1).toString());
+                double productPrice = Double.parseDouble(tableModel.getValueAt(table.getSelectedRow(), 2).toString());
 
-            Object[] message = {
-                "How many " + tableModel.getValueAt(table.getSelectedRow(), 0) + " do you want to purchase?", stockFld
-            };
+                // Check if product is in stock
+                if (availableStock <= 0) {
+                    JOptionPane.showMessageDialog(null,
+                            "Sorry, '" + productName + "' is out of stock.",
+                            "Out of Stock",
+                            JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
 
-            int result = JOptionPane.showConfirmDialog(null, message, "PURCHASE PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+                JTextField stockFld = new JTextField("1"); // Default to 1
+                designer(stockFld, "QUANTITY TO PURCHASE");
 
-            if (result == JOptionPane.OK_OPTION) {
-                System.out.println(stockFld.getText());
+                Object[] message = {
+                        "How many '" + productName + "' do you want to purchase?",
+                        "Available Stock: " + availableStock,
+                        "Price per unit: $" + String.format("%.2f", productPrice),
+                        stockFld
+                };
+
+                int result = JOptionPane.showConfirmDialog(null, message, "PURCHASE PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+
+                if (result == JOptionPane.OK_OPTION) {
+                    // Parse and validate purchase quantity
+                    int purchaseQuantity = Integer.parseInt(stockFld.getText().trim());
+
+                    if (purchaseQuantity <= 0) {
+                        JOptionPane.showMessageDialog(null,
+                                "Please enter a valid quantity (greater than 0).",
+                                "Invalid Quantity",
+                                JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    if (purchaseQuantity > availableStock) {
+                        JOptionPane.showMessageDialog(null,
+                                "Cannot purchase " + purchaseQuantity + " items. Only " + availableStock + " available.",
+                                "Insufficient Stock",
+                                JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    // Calculate total cost
+                    double totalCost = purchaseQuantity * productPrice;
+
+                    // Confirm purchase
+                    int confirmResult = JOptionPane.showConfirmDialog(null,
+                            "Confirm Purchase:\n" +
+                                    "Product: " + productName + "\n" +
+                                    "Quantity: " + purchaseQuantity + "\n" +
+                                    "Unit Price: $" + String.format("%.2f", productPrice) + "\n" +
+                                    "Total Cost: $" + String.format("%.2f", totalCost) + "\n\n" +
+                                    "Proceed with purchase?",
+                            "Confirm Purchase",
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.QUESTION_MESSAGE);
+
+                    if (confirmResult == JOptionPane.YES_OPTION) {
+                        // Process the purchase
+                        sqlite.processPurchase(productName, purchaseQuantity, currentUsername); // You'll need to pass actual username
+
+                        // Refresh the table to show updated stock
+                        init();
+
+                        // Show success message
+                        JOptionPane.showMessageDialog(null,
+                                "Purchase successful!\n" +
+                                        "Purchased: " + purchaseQuantity + " x " + productName + "\n" +
+                                        "Total: $" + String.format("%.2f", totalCost),
+                                "Purchase Complete",
+                                JOptionPane.INFORMATION_MESSAGE);
+                    }
+                }
+
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null,
+                        "Please enter a valid number for quantity.",
+                        "Invalid Input",
+                        JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null,
+                        "Error processing purchase: " + e.getMessage(),
+                        "Purchase Error",
+                        JOptionPane.ERROR_MESSAGE);
             }
+        } else {
+            JOptionPane.showMessageDialog(null,
+                    "Please select a product to purchase.",
+                    "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_purchaseBtnActionPerformed
 
