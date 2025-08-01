@@ -5,6 +5,7 @@
  */
 package View;
 
+import Constants.LogEventTypes;
 import Controller.SQLite;
 import Model.Product;
 import java.util.ArrayList;
@@ -482,6 +483,20 @@ public class MgmtProduct extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_deleteBtnActionPerformed
 
+    public boolean attemptProductAction(String action, String username, int userRole) {
+        int requiredRole = 4; // Manager role or higher
+
+        if (userRole >= requiredRole) {
+            sqlite.addSecurityLog(LogEventTypes.ACCESS_GRANTED, username,
+                    "Product management access granted - Action: " + action);
+            return true;
+        } else {
+            sqlite.addSecurityLog(LogEventTypes.ACCESS_DENIED, username,
+                    "Product management access denied - Action: " + action +
+                            " (User role: " + userRole + ", Required: " + requiredRole + ")");
+            return false;
+        }
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton addBtn;

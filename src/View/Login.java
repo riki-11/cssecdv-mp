@@ -88,29 +88,27 @@ public class Login extends javax.swing.JPanel {
                 .addContainerGap(126, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
-    private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
+    private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {
         String username = usernameFld.getText();
         String password = new String(passwordFld.getPassword());
 
-        if(username.isEmpty() || password.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter both username and password.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+        // Use the enhanced authentication method with logging
+        User user = sqlite.authenticateUser(username, password);
 
-        User user = sqlite.getUserByCredentials(username, password);
-
-        if(user != null) {
+        if (user != null) {
             JOptionPane.showMessageDialog(this, "Login successful! Welcome " + username, "Success", JOptionPane.INFORMATION_MESSAGE);
             int role = user.getRole();
             frame.hideButtons(role);
             frame.mainNav(role, username);
         } else {
-            JOptionPane.showMessageDialog(this, "Invalid username or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
+            // Generic error message for security (don't reveal why it failed)
+            JOptionPane.showMessageDialog(this, "Invalid username and/or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
         }
 
+        // Clear fields for security
         passwordFld.setText("");
         usernameFld.setText("");
-    }//GEN-LAST:event_loginBtnActionPerformed
+    }
 
     private void registerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_registerBtnActionPerformed
         frame.registerNav();

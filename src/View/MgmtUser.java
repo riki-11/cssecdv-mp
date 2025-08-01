@@ -5,6 +5,7 @@
  */
 package View;
 
+import Constants.LogEventTypes;
 import Controller.SQLite;
 import Model.User;
 import java.util.ArrayList;
@@ -270,6 +271,21 @@ public class MgmtUser extends javax.swing.JPanel {
             }
         }
     }//GEN-LAST:event_chgpassBtnActionPerformed
+
+    public boolean attemptUserManagement(String action, String username, int userRole, String targetUser) {
+        int requiredRole = 5; // Admin role required
+
+        if (userRole >= requiredRole) {
+            sqlite.addSecurityLog(LogEventTypes.ACCESS_GRANTED, username,
+                    "User management access granted - Action: " + action + " on user: " + targetUser);
+            return true;
+        } else {
+            sqlite.addSecurityLog(LogEventTypes.ACCESS_DENIED, username,
+                    "User management access denied - Action: " + action + " on user: " + targetUser +
+                            " (User role: " + userRole + ", Required: " + requiredRole + ")");
+            return false;
+        }
+    }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

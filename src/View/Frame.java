@@ -249,8 +249,7 @@ public class Frame extends javax.swing.JFrame {
     }
 
     public void mainNav(int role, String username) {
-        this.currentUserRole = role;
-        this.currentUsername = username;
+        setCurrentUser(username, role);
 
         // Re-initialize the home panels with the username
         adminHomePnl.init(main.sqlite, username);
@@ -317,6 +316,19 @@ public class Frame extends javax.swing.JFrame {
                 contentView.show(Content, "clientHomePnl");
                 break;
         }
+    }
+
+    public void setCurrentUser(String username, int role) {
+        this.currentUsername = username;
+        this.currentUserRole = role;
+    }
+
+    public String getCurrentUsername() {
+        return currentUsername;
+    }
+
+    public int getCurrentUserRole() {
+        return currentUserRole;
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

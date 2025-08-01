@@ -1,5 +1,6 @@
 package View;
 
+import Constants.LogEventTypes;
 import Controller.SQLite;
 import Model.User;
 import Service.PasswordStrengthChecker;
@@ -103,22 +104,17 @@ public class Register extends javax.swing.JPanel {
         );
     }// </editor-fold>//GEN-END:initComponents
 
-    private void registerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_registerBtnActionPerformed
+    private void registerBtnActionPerformed(java.awt.event.ActionEvent evt) {
         String username = usernameFld.getText().trim();
         String password = new String(passwordFld.getPassword());
         String confirmPassword = new String(confpassFld.getPassword());
 
-        if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
-            javax.swing.JOptionPane.showMessageDialog(this,
-                    "Please fill in all fields.",
-                    "Registration Error",
-                    javax.swing.JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+        // Step 1: Basic input validation with logging
+        boolean basicValidationResult = sqLite.registerUserWithValidation(username, password, confirmPassword);
 
-        if (!password.equals(confirmPassword)) {
+        if (!basicValidationResult) {
             javax.swing.JOptionPane.showMessageDialog(this,
-                    "Passwords do not match. Please try again.",
+                    "Registration failed. Please check your input and try again.",
                     "Registration Error",
                     javax.swing.JOptionPane.ERROR_MESSAGE);
 
@@ -128,9 +124,14 @@ public class Register extends javax.swing.JPanel {
             return;
         }
 
+        // Step 2: Password strength validation (using your existing system)
         PasswordCheckResult passwordResult = PasswordStrengthChecker.checkStrength(password);
 
-        if(!passwordResult.isValid) {
+        if (!passwordResult.isValid) {
+            // Log the password strength failure with the specific message
+            sqLite.addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username,
+                    "Registration failed - Password strength validation: " + passwordResult.message);
+
             javax.swing.JOptionPane.showMessageDialog(this,
                     passwordResult.message,
                     "Registration Error",
@@ -142,37 +143,26 @@ public class Register extends javax.swing.JPanel {
             return;
         }
 
+        // Step 3: Complete the registration process
+        boolean registrationResult = sqLite.completeUserRegistration(username, password);
+
+        if (registrationResult) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "Registration successful! You can now login.",
+                    "Success",
+                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            frame.loginNav();
+        } else {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "Registration failed due to a system error. Please try again.",
+                    "Registration Error",
+                    javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
+
         // Clear password fields for security
         passwordFld.setText("");
         confpassFld.setText("");
-
-        User user = sqLite.getUserByUsername(username);
-
-        if(user != null) {
-            javax.swing.JOptionPane.showMessageDialog(this,
-                    "Unsuccessful Registration, Username is taken.",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-            usernameFld.setText("");
-        } else {
-            //TODO hash password
-            boolean result = frame.registerAction(username, password, confirmPassword);
-
-            if(result) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                        "Registration successful! You can now login.",
-                        "Success",
-                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
-            } else {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                        "Unsuccessful Registration, DB error",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE);
-            }
-
-            frame.loginNav();
-        }
-    }//GEN-LAST:event_registerBtnActionPerformed
+    }
 
     private void backBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_backBtnActionPerformed
         passwordFld.setText("");

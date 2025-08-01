@@ -13,6 +13,7 @@ import Model.User;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.util.ArrayList;
+import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -26,6 +27,10 @@ public class StaffHome extends javax.swing.JPanel {
     public MgmtProduct mgmtProduct;
     public MgmtUser mgmtUser;
 
+    private String currentUsername;
+    private int currentUserRole;
+    private SQLite sqlite;
+
     private CardLayout contentView = new CardLayout();
     
     public StaffHome() {
@@ -37,18 +42,18 @@ public class StaffHome extends javax.swing.JPanel {
         mgmtLogs = new MgmtLogs(sqlite);
         mgmtProduct = new MgmtProduct(sqlite, 3, username);
         mgmtUser = new MgmtUser(sqlite, 3);
-    
+
         Content.setLayout(contentView);
         Content.add(new Home("WELCOME STAFF!", new java.awt.Color(0,204,102)), "home");
         Content.add(mgmtUser, "mgmtUser");
         Content.add(mgmtHistory, "mgmtHistory");
         Content.add(mgmtProduct, "mgmtProduct");
         Content.add(mgmtLogs, "mgmtLogs");
-        
-//        UNCOMMENT TO DISABLE BUTTONS
-//        historyBtn.setVisible(false);
+
+        // Optional: Disable access if needed
+        // historyBtn.setVisible(false);
         usersBtn.setVisible(false);
-//        productsBtn.setVisible(false);
+        // productsBtn.setVisible(false);
         logsBtn.setVisible(false);
     }
     
@@ -155,32 +160,48 @@ public class StaffHome extends javax.swing.JPanel {
         );
     }// </editor-fold>//GEN-END:initComponents
 
-    private void usersBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_usersBtnActionPerformed
-        mgmtUser.init();
-        usersBtn.setForeground(Color.red);
-        productsBtn.setForeground(Color.black);
-        historyBtn.setForeground(Color.black);
-        logsBtn.setForeground(Color.black);
-        contentView.show(Content, "mgmtUser");
-    }//GEN-LAST:event_usersBtnActionPerformed
+    private boolean checkStaffAccess(String username, int userRole, String action) {
+        return sqlite.checkUserAccess(username, userRole, action, 3);
+    }
 
-    private void productsBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsBtnActionPerformed
-        mgmtProduct.init();
-        usersBtn.setForeground(Color.black);
-        productsBtn.setForeground(Color.red);
-        historyBtn.setForeground(Color.black);
-        logsBtn.setForeground(Color.black);
-        contentView.show(Content, "mgmtProduct");
-    }//GEN-LAST:event_productsBtnActionPerformed
+    private void usersBtnActionPerformed(java.awt.event.ActionEvent evt) {
+        if (checkStaffAccess(currentUsername, currentUserRole, "View Users")) {
+            mgmtUser.init();
+            usersBtn.setForeground(Color.red);
+            productsBtn.setForeground(Color.black);
+            historyBtn.setForeground(Color.black);
+            logsBtn.setForeground(Color.black);
+            contentView.show(Content, "mgmtUser");
+        } else {
+            JOptionPane.showMessageDialog(this, "Access Denied", "Security Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 
-    private void historyBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_historyBtnActionPerformed
-        mgmtHistory.init();
-        usersBtn.setForeground(Color.black);
-        productsBtn.setForeground(Color.black);
-        historyBtn.setForeground(Color.red);
-        logsBtn.setForeground(Color.black);
-        contentView.show(Content, "mgmtHistory");
-    }//GEN-LAST:event_historyBtnActionPerformed
+    private void productsBtnActionPerformed(java.awt.event.ActionEvent evt) {
+        if (checkStaffAccess(currentUsername, currentUserRole, "View Products")) {
+            mgmtProduct.init();
+            usersBtn.setForeground(Color.black);
+            productsBtn.setForeground(Color.red);
+            historyBtn.setForeground(Color.black);
+            logsBtn.setForeground(Color.black);
+            contentView.show(Content, "mgmtProduct");
+        } else {
+            JOptionPane.showMessageDialog(this, "Access Denied", "Security Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void historyBtnActionPerformed(java.awt.event.ActionEvent evt) {
+        if (checkStaffAccess(currentUsername, currentUserRole, "View History")) {
+            mgmtHistory.init();
+            usersBtn.setForeground(Color.black);
+            productsBtn.setForeground(Color.black);
+            historyBtn.setForeground(Color.red);
+            logsBtn.setForeground(Color.black);
+            contentView.show(Content, "mgmtHistory");
+        } else {
+            JOptionPane.showMessageDialog(this, "Access Denied", "Security Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 
     private void logsBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logsBtnActionPerformed
         mgmtLogs.init();
