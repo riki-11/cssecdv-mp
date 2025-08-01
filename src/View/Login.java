@@ -102,6 +102,9 @@ public class Login extends javax.swing.JPanel {
         if(user != null) {
             JOptionPane.showMessageDialog(this, "Login successful! Welcome " + username, "Success", JOptionPane.INFORMATION_MESSAGE);
             int role = user.getRole();
+
+//            frame.setCurrentUser(username);
+
             frame.hideButtons(role);
             frame.mainNav(role, username);
         } else {

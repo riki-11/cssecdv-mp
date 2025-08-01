@@ -1,11 +1,17 @@
 package View;
 
 import Controller.Main;
+import Model.User;
+import Service.PasswordStrengthChecker;
+import dto.PasswordCheckResult;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import javax.swing.WindowConstants;
+import javax.swing.JOptionPane;
+import javax.swing.JTextField;
+import javax.swing.JPasswordField;
 
 public class Frame extends javax.swing.JFrame {
 
@@ -26,6 +32,7 @@ public class Frame extends javax.swing.JFrame {
         managerBtn = new javax.swing.JButton();
         staffBtn = new javax.swing.JButton();
         clientBtn = new javax.swing.JButton();
+        changePassBtn = new javax.swing.JButton();
         logoutBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -88,8 +95,18 @@ public class Frame extends javax.swing.JFrame {
         clientBtn.setText("Client Home");
         clientBtn.setFocusable(false);
         clientBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
+        public void actionPerformed(java.awt.event.ActionEvent evt) {
                 clientBtnActionPerformed(evt);
+            }
+        });
+
+        changePassBtn.setBackground(new java.awt.Color(250, 250, 250));
+        changePassBtn.setFont(new java.awt.Font("Tahoma", 1, 12)); // NOI18N
+        changePassBtn.setText("Change Password");
+        changePassBtn.setFocusable(false);
+        changePassBtn.addActionListener(new java.awt.event.ActionListener() {
+        public void actionPerformed(java.awt.event.ActionEvent evt) {
+                changePassBtnActionPerformed(evt);
             }
         });
 
@@ -98,7 +115,7 @@ public class Frame extends javax.swing.JFrame {
         logoutBtn.setText("LOGOUT");
         logoutBtn.setFocusable(false);
         logoutBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
+        public void actionPerformed(java.awt.event.ActionEvent evt) {
                 logoutBtnActionPerformed(evt);
             }
         });
@@ -115,6 +132,7 @@ public class Frame extends javax.swing.JFrame {
                                         .addComponent(managerBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                         .addComponent(staffBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                         .addComponent(clientBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                        .addComponent(changePassBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                         .addComponent(logoutBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                                 .addContainerGap())
         );
@@ -131,7 +149,9 @@ public class Frame extends javax.swing.JFrame {
                                 .addComponent(staffBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(clientBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 139, Short.MAX_VALUE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(changePassBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 89, Short.MAX_VALUE)
                                 .addComponent(logoutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addContainerGap())
         );
@@ -180,6 +200,10 @@ public class Frame extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
+//    public void setCurrentUser(String username) {
+//        this.currentLoggedInUser = username;
+//    }
+
     private void adminBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_adminBtnActionPerformed
         adminHomePnl.showPnl("home");
         contentView.show(Content, "adminHomePnl");
@@ -200,7 +224,89 @@ public class Frame extends javax.swing.JFrame {
         contentView.show(Content, "clientHomePnl");
     }//GEN-LAST:event_clientBtnActionPerformed
 
+    private void changePassBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_changePassBtnActionPerformed
+        if (currentUsername == null || currentUsername.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Error: No user logged in.", "Authentication Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        JPasswordField currentPassFld = new JPasswordField();
+        JPasswordField newPassFld = new JPasswordField();
+        JPasswordField confirmPassFld = new JPasswordField();
+
+        designer(currentPassFld, "CURRENT PASSWORD");
+        designer(newPassFld, "NEW PASSWORD");
+        designer(confirmPassFld, "CONFIRM NEW PASSWORD");
+
+        Object[] message = {
+                "Change Password for: " + currentUsername,
+                currentPassFld,
+                newPassFld,
+                confirmPassFld
+        };
+
+        int result = JOptionPane.showConfirmDialog(null, message, "CHANGE PASSWORD",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+
+        if (result == JOptionPane.OK_OPTION) {
+            String currentPassword = new String(currentPassFld.getPassword());
+            String newPassword = new String(newPassFld.getPassword());
+            String confirmPassword = new String(confirmPassFld.getPassword());
+
+            // Clear password fields for security
+            currentPassFld.setText("");
+            newPassFld.setText("");
+            confirmPassFld.setText("");
+
+            // Validate inputs
+            if (currentPassword.isEmpty() || newPassword.isEmpty() || confirmPassword.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "All fields are required.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Verify current password
+            User user = main.sqlite.getUserByCredentials(currentUsername, currentPassword);
+            if (user == null) {
+                JOptionPane.showMessageDialog(this, "Current password is incorrect.", "Authentication Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Check if new passwords match
+            if (!newPassword.equals(confirmPassword)) {
+                JOptionPane.showMessageDialog(this, "New passwords do not match.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Check if new password is different from current
+            if (currentPassword.equals(newPassword)) {
+                JOptionPane.showMessageDialog(this, "New password must be different from current password.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Validate password strength
+            PasswordCheckResult passwordResult = PasswordStrengthChecker.checkStrength(newPassword);
+            if (!passwordResult.isValid) {
+                JOptionPane.showMessageDialog(this, passwordResult.message, "Password Strength Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Update password in database
+            boolean success = main.sqlite.updateUserPassword(currentUsername, newPassword);
+            if (success) {
+                // Log the password change
+                main.sqlite.addLogs("PASSWORD_CHANGE", currentUsername, "Password changed successfully",
+                        new java.sql.Timestamp(new java.util.Date().getTime()).toString());
+
+                JOptionPane.showMessageDialog(this, "Password changed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to update password. Please try again.", "Database Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }//GEN-LAST:event_changePassBtnActionPerformed
+
     private void logoutBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logoutBtnActionPerformed
+        currentUsername = null;
+        currentUserRole = 0;
         frameView.show(Container, "loginPnl");
     }//GEN-LAST:event_logoutBtnActionPerformed
 
@@ -218,6 +324,15 @@ public class Frame extends javax.swing.JFrame {
 
     CardLayout contentView = new CardLayout();
     private CardLayout frameView = new CardLayout();
+
+    // Helper method for styling text fields
+    public void designer(JTextField component, String text){
+        component.setSize(70, 600);
+        component.setFont(new java.awt.Font("Tahoma", 0, 18));
+        component.setBackground(new java.awt.Color(240, 240, 240));
+        component.setHorizontalAlignment(javax.swing.JTextField.CENTER);
+        component.setBorder(javax.swing.BorderFactory.createTitledBorder(new javax.swing.border.LineBorder(new java.awt.Color(0, 0, 0), 2, true), text, javax.swing.border.TitledBorder.CENTER, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 0, 12)));
+    }
 
     public void init(Main controller) {
         this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -263,6 +378,8 @@ public class Frame extends javax.swing.JFrame {
     }
 
     public void loginNav() {
+        currentUsername = null;
+        currentUserRole = 0;
         frameView.show(Container, "loginPnl");
     }
 
@@ -279,26 +396,30 @@ public class Frame extends javax.swing.JFrame {
         managerBtn.setVisible(false);
         staffBtn.setVisible(false);
         clientBtn.setVisible(false);
+        changePassBtn.setVisible(false);
 
         switch (role) {
             case 5:
                 adminBtn.setVisible(true);
+                changePassBtn.setVisible(true);
                 break;
             case 4:
                 managerBtn.setVisible(true);
+                changePassBtn.setVisible(true);
                 break;
             case 3:
                 staffBtn.setVisible(true);
+                changePassBtn.setVisible(true);
                 break;
             case 2:
                 clientBtn.setVisible(true);
+                changePassBtn.setVisible(true);
                 break;
         }
     }
 
     public void showPanel(int role) {
         // Show the appropriate panel based on role and navigate to it
-
         switch (role) {
             case 5:
                 adminHomePnl.showPnl("home");
@@ -326,6 +447,7 @@ public class Frame extends javax.swing.JFrame {
     private javax.swing.JPanel Navigation;
     private javax.swing.JButton adminBtn;
     private javax.swing.JButton clientBtn;
+    private javax.swing.JButton changePassBtn;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JButton logoutBtn;
     private javax.swing.JButton managerBtn;

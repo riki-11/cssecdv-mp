@@ -77,6 +77,32 @@ public class SQLite {
         }
     }
 
+    public boolean updateUserPassword(String username, String newPassword) {
+        String hashedPassword = hashPassword(newPassword);
+        String sql = "UPDATE users SET password = ? WHERE username = ?";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, hashedPassword);
+            pstmt.setString(2, username);
+
+            int affectedRows = pstmt.executeUpdate();
+
+            if (affectedRows > 0) {
+                System.out.println("Password updated successfully for user: " + username);
+                return true;
+            } else {
+                System.out.println("No user found with username: " + username);
+                return false;
+            }
+
+        } catch (Exception ex) {
+            System.err.println("Error updating password: " + ex.getMessage());
+            return false;
+        }
+    }
+
     // Constant-time comparison to prevent timing attacks
     private boolean slowEquals(byte[] a, byte[] b) {
         int diff = a.length ^ b.length;
