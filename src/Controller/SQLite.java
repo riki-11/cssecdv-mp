@@ -105,13 +105,14 @@ public class SQLite {
             System.out.print(ex);
         }
     }
-    
+
     public void createHistoryTable() {
         String sql = "CREATE TABLE IF NOT EXISTS history (\n"
             + " id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
             + " username TEXT NOT NULL,\n"
             + " name TEXT NOT NULL,\n"
             + " stock INTEGER DEFAULT 0,\n"
+            + " price REAL DEFAULT 0.00,\n"
             + " timestamp TEXT NOT NULL\n"
             + ");";
 
@@ -123,7 +124,6 @@ public class SQLite {
             System.out.print(ex);
         }
     }
-    
     public void createLogsTable() {
         String sql = "CREATE TABLE IF NOT EXISTS logs (\n"
             + " id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
@@ -224,9 +224,9 @@ public class SQLite {
             System.out.print(ex);
         }
     }
-    
-    public void addHistory(String username, String name, int stock, String timestamp) {
-        String sql = "INSERT INTO history(username, name, stock, timestamp) VALUES(?, ?, ?, ?)";
+
+    public void addHistory(String username, String name, int stock, double price, String timestamp) {
+        String sql = "INSERT INTO history(username,name,stock,price,timestamp) VALUES(?,?,?,?,?)";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -234,13 +234,12 @@ public class SQLite {
             pstmt.setString(1, username);
             pstmt.setString(2, name);
             pstmt.setInt(3, stock);
-            pstmt.setString(4, timestamp);
-
+            pstmt.setDouble(4, price);
+            pstmt.setString(5, timestamp);
             pstmt.executeUpdate();
 
-        } catch (SQLException ex) {
-            System.err.println("Error adding to history: " + ex.getMessage());
-            throw new RuntimeException("Failed to add to history", ex);
+        } catch (Exception ex) {
+            System.out.print(ex);
         }
     }
     
@@ -347,7 +346,7 @@ public class SQLite {
     }
 
     public ArrayList<History> getHistory(){
-        String sql = "SELECT id, username, name, stock, timestamp FROM history";
+        String sql = "SELECT id, username, name, stock, price, timestamp FROM history";
         ArrayList<History> histories = new ArrayList<History>();
         
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -359,6 +358,7 @@ public class SQLite {
                                    rs.getString("username"),
                                    rs.getString("name"),
                                    rs.getInt("stock"),
+                                   rs.getDouble("price"),
                                    rs.getString("timestamp")));
             }
         } catch (Exception ex) {
@@ -423,7 +423,7 @@ public class SQLite {
         return product;
     }
 
-    public void processPurchase(String productName, int quantity, String username) {
+    public void processPurchase(String productName, int quantity, double price, String username) {
         Connection conn = null;
         try {
             conn = DriverManager.getConnection(driverURL);
@@ -444,20 +444,14 @@ public class SQLite {
             int newStock = product.getStock() - quantity;
 
             // Add to purchase history
-            addHistory(username, productName, quantity, new Timestamp(new Date().getTime()).toString());
+            addHistory(username, productName, quantity, price, new Timestamp(new Date().getTime()).toString());
 
-            if (newStock <= 0) {
-                // Remove product if stock reaches 0
-                deleteProduct(productName);
-                System.out.println("Product '" + productName + "' removed from inventory (stock depleted)");
-            } else {
-                // Update product stock
-                updateProductStock(productName, newStock);
-                System.out.println("Updated stock for '" + productName + "': " + newStock + " remaining");
-            }
+            // Update product stock
+            updateProductStock(productName, newStock);
+            System.out.println("Updated stock for '" + productName + "': " + newStock + " remaining");
 
             conn.commit(); // Commit transaction
-            System.out.println("Purchase processed successfully: " + quantity + " x " + productName + " by " + username);
+            System.out.println("Purchase processed successfully: " + price + "x " + quantity + " of " + productName + " by " + username);
 
         } catch (SQLException ex) {
             try {
