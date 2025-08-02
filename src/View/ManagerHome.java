@@ -54,6 +54,8 @@ public class ManagerHome extends javax.swing.JPanel {
         Content.add(mgmtProduct, "mgmtProduct");
         Content.add(mgmtLogs, "mgmtLogs");
 
+        logsBtn.setVisible(false);
+        usersBtn.setVisible(false);
     }
 
 

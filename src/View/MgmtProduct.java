@@ -81,17 +81,17 @@ public class MgmtProduct extends javax.swing.JPanel {
 
         switch(userRole) {
             case 5: // Admin - full access
-                addBtn.setVisible(true);
-                editBtn.setVisible(true);
-                deleteBtn.setVisible(true);
-                purchaseBtn.setVisible(true);
+                addBtn.setVisible(false);
+                editBtn.setVisible(false);
+                deleteBtn.setVisible(false);
+                purchaseBtn.setVisible(false);
                 break;
 
             case 4: // Manager - can manage products
                 addBtn.setVisible(true);
                 editBtn.setVisible(true);
                 deleteBtn.setVisible(true);
-                purchaseBtn.setVisible(true);
+                purchaseBtn.setVisible(false);
                 break;
 
             case 3: // Staff - can manage products
