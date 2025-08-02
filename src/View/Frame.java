@@ -95,7 +95,7 @@ public class Frame extends javax.swing.JFrame {
         clientBtn.setText("Client Home");
         clientBtn.setFocusable(false);
         clientBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
+        public void actionPerformed(java.awt.event.ActionEvent evt) {
                 clientBtnActionPerformed(evt);
             }
         });
