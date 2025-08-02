@@ -1,6 +1,9 @@
 package View;
 
 import Controller.Main;
+import Model.User;
+import Service.PasswordStrengthChecker;
+import dto.PasswordCheckResult;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
