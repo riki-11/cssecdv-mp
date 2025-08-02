@@ -28,6 +28,7 @@ public class SQLite {
     private static final int ITERATIONS = 10000;
     private static final int KEY_LENGTH = 256;
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
+    private String lastValidationMessage = "";
 
     // Generate  random salt
     private byte[] generateSalt() {
@@ -36,6 +37,11 @@ public class SQLite {
         random.nextBytes(salt);
         return salt;
     }
+
+    public String getLastValidationMessage() {
+        return lastValidationMessage;
+    }
+
 
     // Hash a password using PBKDF2
     private String hashPassword(String password) {
@@ -764,6 +770,10 @@ public class SQLite {
     public boolean registerUserWithValidation(String username, String password, String confirmPassword) {
         String currentUser = "REGISTRATION_SYSTEM";
 
+        if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+            return false;  // Don't set lastValidationMessage → triggers generic UI error
+        }
+
         // Validate username
         if (!validateUserInput("username", username, currentUser, 50, false)) {
             return false;
@@ -779,14 +789,13 @@ public class SQLite {
             return false;
         }
 
-        // Check password match
         if (!password.equals(confirmPassword)) {
-            addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username,
-                    "Registration failed - Password and confirm password do not match");
+            String msg = "Registration failed - Password and confirm password do not match";
+            addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, msg);
+            lastValidationMessage = msg;
             return false;
         }
 
-        // Check if user already exists
         if (getUserByUsername(username) != null) {
             addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username,
                     "Registration failed - Username already exists");

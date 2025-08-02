@@ -113,16 +113,21 @@ public class Register extends javax.swing.JPanel {
         boolean basicValidationResult = sqLite.registerUserWithValidation(username, password, confirmPassword);
 
         if (!basicValidationResult) {
-            javax.swing.JOptionPane.showMessageDialog(this,
-                    "Registration failed. Please check your input and try again.",
-                    "Registration Error",
-                    javax.swing.JOptionPane.ERROR_MESSAGE);
+            String msg = sqLite.getLastValidationMessage();
+            final String mismatchMsg = "Registration failed - Password and confirm password do not match";
+
+            if (mismatchMsg.equals(msg)) {
+                JOptionPane.showMessageDialog(this, mismatchMsg, "Registration Error", JOptionPane.ERROR_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Registration failed. Please check your input and try again.", "Registration Error", JOptionPane.ERROR_MESSAGE);
+            }
 
             // Clear password fields for security
             passwordFld.setText("");
             confpassFld.setText("");
             return;
         }
+
 
         // Step 2: Password strength validation (using your existing system)
         PasswordCheckResult passwordResult = PasswordStrengthChecker.checkStrength(password);
