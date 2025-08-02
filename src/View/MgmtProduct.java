@@ -288,7 +288,7 @@ public class MgmtProduct extends javax.swing.JPanel {
 
                     if (confirmResult == JOptionPane.YES_OPTION) {
                         // Process the purchase
-                        sqlite.processPurchase(productName, purchaseQuantity, currentUsername); // You'll need to pass actual username
+                        sqlite.processPurchase(productName, purchaseQuantity, productPrice, currentUsername); // You'll need to pass actual username
 
                         // Refresh the table to show updated stock
                         init();
