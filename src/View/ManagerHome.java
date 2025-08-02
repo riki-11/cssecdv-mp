@@ -204,14 +204,19 @@ public class ManagerHome extends javax.swing.JPanel {
         }
     }
 
-    private void logsBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logsBtnActionPerformed
-        mgmtLogs.init();
-        usersBtn.setForeground(Color.black);
-        productsBtn.setForeground(Color.black);
-        historyBtn.setForeground(Color.black);
-        logsBtn.setForeground(Color.red);
-        contentView.show(Content, "mgmtLogs");
-    }//GEN-LAST:event_logsBtnActionPerformed
+    private void logsBtnActionPerformed(java.awt.event.ActionEvent evt) {
+        if (checkManagerAccess(currentUsername, currentUserRole, "View Logs")) {
+            mgmtLogs.init();
+            usersBtn.setForeground(Color.black);
+            productsBtn.setForeground(Color.black);
+            historyBtn.setForeground(Color.black);
+            logsBtn.setForeground(Color.red);
+            contentView.show(Content, "mgmtLogs");
+        } else {
+            JOptionPane.showMessageDialog(this, "Access Denied", "Security Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

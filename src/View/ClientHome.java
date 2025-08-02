@@ -193,7 +193,6 @@ public class ClientHome extends javax.swing.JPanel {
         }
     }
 
-
     private void historyBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_historyBtnActionPerformed
         mgmtHistory.init();
         usersBtn.setForeground(Color.black);

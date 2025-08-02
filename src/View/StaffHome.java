@@ -36,27 +36,28 @@ public class StaffHome extends javax.swing.JPanel {
     public StaffHome() {
         initComponents();
     }
-    
-    public void init(SQLite sqlite, String username){
+
+    public void init(SQLite sqlite, String username) {
+        this.sqlite = sqlite; // ← This is the missing line!
+        this.currentUsername = username; // Optional: keep your username state too
+        this.currentUserRole = 3;
+
         mgmtHistory = new MgmtHistory(sqlite);
         mgmtLogs = new MgmtLogs(sqlite);
         mgmtProduct = new MgmtProduct(sqlite, 3, username);
         mgmtUser = new MgmtUser(sqlite, 3);
 
         Content.setLayout(contentView);
-        Content.add(new Home("WELCOME STAFF!", new java.awt.Color(0,204,102)), "home");
+        Content.add(new Home("WELCOME STAFF!", new java.awt.Color(0, 204, 102)), "home");
         Content.add(mgmtUser, "mgmtUser");
         Content.add(mgmtHistory, "mgmtHistory");
         Content.add(mgmtProduct, "mgmtProduct");
         Content.add(mgmtLogs, "mgmtLogs");
 
-        // Optional: Disable access if needed
-        // historyBtn.setVisible(false);
         usersBtn.setVisible(false);
-        // productsBtn.setVisible(false);
-        logsBtn.setVisible(false);
     }
-    
+
+
     public void showPnl(String panelName){
         contentView.show(Content, panelName);
     }
@@ -160,8 +161,14 @@ public class StaffHome extends javax.swing.JPanel {
         );
     }// </editor-fold>//GEN-END:initComponents
 
+    // Default version with requiredRole = 3
     private boolean checkStaffAccess(String username, int userRole, String action) {
-        return sqlite.checkUserAccess(username, userRole, action, 3);
+        return checkStaffAccess(username, userRole, action, 3);
+    }
+
+    // Full version for when you want to override the required role
+    private boolean checkStaffAccess(String username, int userRole, String action, int requiredRole) {
+        return sqlite.checkUserAccess(username, userRole, action, requiredRole);
     }
 
     private void usersBtnActionPerformed(java.awt.event.ActionEvent evt) {
@@ -203,14 +210,19 @@ public class StaffHome extends javax.swing.JPanel {
         }
     }
 
-    private void logsBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logsBtnActionPerformed
-        mgmtLogs.init();
-        usersBtn.setForeground(Color.black);
-        productsBtn.setForeground(Color.black);
-        historyBtn.setForeground(Color.black);
-        logsBtn.setForeground(Color.red);
-        contentView.show(Content, "mgmtLogs");
-    }//GEN-LAST:event_logsBtnActionPerformed
+    private void logsBtnActionPerformed(java.awt.event.ActionEvent evt) {
+        if (checkStaffAccess(currentUsername, currentUserRole, "View Logs", 4)) {
+            mgmtLogs.init();
+            usersBtn.setForeground(Color.black);
+            productsBtn.setForeground(Color.black);
+            historyBtn.setForeground(Color.black);
+            logsBtn.setForeground(Color.red);
+            contentView.show(Content, "mgmtLogs");
+        } else {
+            JOptionPane.showMessageDialog(this, "Access Denied", "Security Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JPanel Content;
