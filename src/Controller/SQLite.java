@@ -17,6 +17,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 
+import Constants.LogEventTypes;
+
 public class SQLite {
     
     public int DEBUG_MODE = 0;
@@ -566,32 +568,6 @@ public class SQLite {
         }
     }
 
-    public User getUserByCredentials(String username, String password) {
-        String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
-
-        try (Connection conn = DriverManager.getConnection(driverURL);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, username);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                String storedHashedPassword = rs.getString("password");
-
-                if (verifyPassword(password, storedHashedPassword)) {
-                    return new User(rs.getInt("id"),
-                            rs.getString("username"),
-                            storedHashedPassword,
-                            rs.getInt("role"),
-                            rs.getInt("locked"));
-                }
-            }
-        } catch (Exception ex) {
-            System.out.println("Error during authentication: " + ex.getMessage());
-        }
-        return null;
-    }
-
     public User getUserByUsername(String username) {
         String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
 
@@ -613,5 +589,224 @@ public class SQLite {
             System.out.println(ex);
         }
         return null;
+    }
+
+    // Add this method to your SQLite class for secure logging with PreparedStatement
+    // Overloaded version of addSecurityLog that uses an existing connection
+    public void addSecurityLog(String event, String username, String description, Connection conn) {
+        String sql = "INSERT INTO logs(event, username, desc, timestamp) VALUES(?, ?, ?, ?)";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, event);
+            pstmt.setString(2, username != null ? username : "UNKNOWN");
+            pstmt.setString(3, description);
+            pstmt.setString(4, new Timestamp(new Date().getTime()).toString());
+
+            pstmt.executeUpdate();
+
+            if (DEBUG_MODE == 1) {
+                System.out.println("Security Log: " + event + " - " + username + " - " + description);
+            }
+        } catch (SQLException ex) {
+            System.err.println("Critical: Failed to write security log (shared conn): " + ex.getMessage());
+        }
+    }
+    // fallback for when you don't have access to a shared connection
+    public void addSecurityLog(String event, String username, String description) {
+        String sql = "INSERT INTO logs(event, username, desc, timestamp) VALUES(?, ?, ?, ?)";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, event);
+            pstmt.setString(2, username != null ? username : "UNKNOWN");
+            pstmt.setString(3, description);
+            pstmt.setString(4, new Timestamp(new Date().getTime()).toString());
+
+            pstmt.executeUpdate();
+
+            if (DEBUG_MODE == 1) {
+                System.out.println("Security Log: " + event + " - " + username + " - " + description);
+            }
+        } catch (SQLException ex) {
+            System.err.println("Critical: Failed to write fallback security log: " + ex.getMessage());
+        }
+    }
+
+    // Enhanced authentication method with logging
+    public User authenticateUser(String username, String password) {
+        String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            // Log authentication attempt
+            addSecurityLog(LogEventTypes.AUTH_SUCCESS, username, "Authentication attempt initiated", conn);
+
+            // Input validation
+            if (username == null || username.trim().isEmpty()) {
+                addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, "UNKNOWN", "Username is empty", conn);
+                return null;
+            }
+
+            if (password == null || password.isEmpty()) {
+                addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, "Password is empty", conn);
+                return null;
+            }
+
+            if (username.length() > 50) {
+                addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, "Username too long", conn);
+                return null;
+            }
+
+            if (password.length() > 200) {
+                addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, "Password too long", conn);
+                return null;
+            }
+
+            // Basic SQL injection pattern check
+            String[] sqlPatterns = {"'", "\"", ";", "--", "/*", "*/", "xp_", "sp_", "DROP", "SELECT", "INSERT", "UPDATE", "DELETE"};
+            for (String pattern : sqlPatterns) {
+                if (username.toUpperCase().contains(pattern.toUpperCase())) {
+                    addSecurityLog(LogEventTypes.SECURITY_VIOLATION, username, "Suspicious input: " + pattern, conn);
+                    return null;
+                }
+            }
+
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                if (rs.getInt("locked") == 1) {
+                    addSecurityLog(LogEventTypes.AUTH_ACCOUNT_LOCKED, username, "Account is locked", conn);
+                    return null;
+                }
+
+                String storedHashedPassword = rs.getString("password");
+
+                if (verifyPassword(password, storedHashedPassword)) {
+                    User user = new User(
+                            rs.getInt("id"),
+                            rs.getString("username"),
+                            storedHashedPassword,
+                            rs.getInt("role"),
+                            rs.getInt("locked")
+                    );
+
+                    addSecurityLog(LogEventTypes.AUTH_SUCCESS, username, "Login success - Role: " + user.getRole(), conn);
+                    return user;
+                } else {
+                    addSecurityLog(LogEventTypes.AUTH_FAILURE, username, "Invalid password", conn);
+                    return null;
+                }
+            } else {
+                addSecurityLog(LogEventTypes.AUTH_FAILURE, username, "Username not found", conn);
+                return null;
+            }
+
+        } catch (Exception ex) {
+            System.err.println("Database error during authentication: " + ex.getMessage());
+            // Use fallback logging method (outside of connection)
+            addSecurityLog(LogEventTypes.AUTH_FAILURE, username, "DB error: " + ex.getMessage());
+            return null;
+        }
+    }
+
+
+    // Method to validate and log input validation failures
+    public boolean validateUserInput(String fieldName, String value, String username, int maxLength, boolean allowEmpty) {
+        if (value == null) {
+            addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username,
+                    "Input validation failed - " + fieldName + " is null");
+            return false;
+        }
+
+        if (!allowEmpty && value.trim().isEmpty()) {
+            addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username,
+                    "Input validation failed - " + fieldName + " is empty");
+            return false;
+        }
+
+        if (value.length() > maxLength) {
+            addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username,
+                    "Input validation failed - " + fieldName + " exceeds maximum length (" + maxLength + ")");
+            return false;
+        }
+
+        // Check for potential XSS/injection patterns
+        String[] dangerousPatterns = {"<script", "</script", "javascript:", "onload=", "onerror=",
+                "'", "\"", ";", "--", "/*", "*/"};
+        for (String pattern : dangerousPatterns) {
+            if (value.toLowerCase().contains(pattern.toLowerCase())) {
+                addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username,
+                        "Input validation failed - " + fieldName + " contains suspicious pattern: " + pattern);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Method to check and log access control violations
+    public boolean checkUserAccess(String username, int userRole, String requestedAction, int requiredRole) {
+        if (userRole >= requiredRole) {
+            addSecurityLog(LogEventTypes.ACCESS_GRANTED, username,
+                    "Access granted - Action: " + requestedAction + " (User role: " + userRole + ", Required: " + requiredRole + ")");
+            return true;
+        } else {
+            addSecurityLog(LogEventTypes.ACCESS_DENIED, username,
+                    "Access denied - Action: " + requestedAction + " (User role: " + userRole + ", Required: " + requiredRole + ")");
+            return false;
+        }
+    }
+
+    // Enhanced user registration with input validation logging
+    public boolean registerUserWithValidation(String username, String password, String confirmPassword) {
+        String currentUser = "REGISTRATION_SYSTEM";
+
+        // Validate username
+        if (!validateUserInput("username", username, currentUser, 50, false)) {
+            return false;
+        }
+
+        // Validate password basic format
+        if (!validateUserInput("password", password, username, 200, false)) {
+            return false;
+        }
+
+        // Validate confirm password
+        if (!validateUserInput("confirmPassword", confirmPassword, username, 200, false)) {
+            return false;
+        }
+
+        // Check password match
+        if (!password.equals(confirmPassword)) {
+            addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username,
+                    "Registration failed - Password and confirm password do not match");
+            return false;
+        }
+
+        // Check if user already exists
+        if (getUserByUsername(username) != null) {
+            addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username,
+                    "Registration failed - Username already exists");
+            return false;
+        }
+
+        // All basic validations passed - return true to continue with password strength check in UI
+        return true;
+    }
+
+    // Method to complete registration after password strength validation
+    public boolean completeUserRegistration(String username, String password) {
+        boolean result = addUser(username, password);
+        if (result) {
+            addSecurityLog(LogEventTypes.AUTH_SUCCESS, username,
+                    "User registration completed successfully");
+        } else {
+            addSecurityLog(LogEventTypes.AUTH_FAILURE, username,
+                    "User registration failed - Database error");
+        }
+        return result;
     }
 }

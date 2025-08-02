@@ -5,6 +5,7 @@
  */
 package View;
 
+import Constants.LogEventTypes;
 import Controller.SQLite;
 import Model.User;
 import java.util.ArrayList;
@@ -15,6 +16,9 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
+import Service.PasswordStrengthChecker;
+import dto.PasswordCheckResult;
+
 
 /**
  *
@@ -25,16 +29,18 @@ public class MgmtUser extends javax.swing.JPanel {
     public SQLite sqlite;
     public DefaultTableModel tableModel;
     private int userRole;
+    private String currentUsername;
 
-    public MgmtUser(SQLite sqlite, int userRole) {
+    public MgmtUser(SQLite sqlite, int userRole, String currentUsername) {
         initComponents();
         this.sqlite = sqlite;
+        this.currentUsername = currentUsername;  // Now this works as expected
         tableModel = (DefaultTableModel)table.getModel();
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));
 
         configureButtonVisibility(userRole);
     }
-    
+
     public void init(){
         //      CLEAR TABLE
         for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
@@ -50,6 +56,14 @@ public class MgmtUser extends javax.swing.JPanel {
                 users.get(nCtr).getRole(), 
                 users.get(nCtr).getLocked()});
         }
+    }
+
+    private void logValidationFailure(String reason) {
+        sqlite.addSecurityLog(
+                LogEventTypes.INPUT_VALIDATION_FAILURE,
+                currentUsername != null ? currentUsername : "Unknown User",
+                reason
+        );
     }
 
     public void designer(JTextField component, String text){
@@ -210,23 +224,50 @@ public class MgmtUser extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void editRoleBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editRoleBtnActionPerformed
+        if (table.getSelectedRow() < 0) {
+            logValidationFailure("Attempted edit user without selecting user");
+            JOptionPane.showMessageDialog(null, "No user selected!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         if(table.getSelectedRow() >= 0){
             String[] options = {"1-DISABLED","2-CLIENT","3-STAFF","4-MANAGER","5-ADMIN"};
             JComboBox optionList = new JComboBox(options);
-            
+
             optionList.setSelectedIndex((int)tableModel.getValueAt(table.getSelectedRow(), 2) - 1);
-            
-            String result = (String) JOptionPane.showInputDialog(null, "USER: " + tableModel.getValueAt(table.getSelectedRow(), 0), 
+
+            String result = (String) JOptionPane.showInputDialog(null, "USER: " + tableModel.getValueAt(table.getSelectedRow(), 0),
                 "EDIT USER ROLE", JOptionPane.QUESTION_MESSAGE, null, options, options[(int)tableModel.getValueAt(table.getSelectedRow(), 2) - 1]);
-            
+
             if(result != null){
-                System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
-                System.out.println(result.charAt(0));
+                String username = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
+
+                try {
+                    int selectedRole = Integer.parseInt(String.valueOf(result.charAt(0)));
+                    if (selectedRole < 1 || selectedRole > 5) {
+                        logValidationFailure("Invalid role selected (" + selectedRole + ") for user: " + username);
+                        JOptionPane.showMessageDialog(null, "Invalid role selected!", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    System.out.println(username);
+                    System.out.println(selectedRole);
+                } catch (Exception e) {
+                    logValidationFailure("Non-numeric role value selected for user: " + username);
+                    JOptionPane.showMessageDialog(null, "Invalid role format!", "Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
+
         }
     }//GEN-LAST:event_editRoleBtnActionPerformed
 
     private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteBtnActionPerformed
+        if (table.getSelectedRow() < 0) {
+            logValidationFailure("Attempted delete without selecting user");
+            JOptionPane.showMessageDialog(null, "No user selected!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         if(table.getSelectedRow() >= 0){
             int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete " + tableModel.getValueAt(table.getSelectedRow(), 0) + "?", "DELETE USER", JOptionPane.YES_NO_OPTION);
             
@@ -237,6 +278,12 @@ public class MgmtUser extends javax.swing.JPanel {
     }//GEN-LAST:event_deleteBtnActionPerformed
 
     private void lockBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_lockBtnActionPerformed
+        if (table.getSelectedRow() < 0) {
+            logValidationFailure("Attempted lock without selecting user");
+            JOptionPane.showMessageDialog(null, "No user selected!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         if(table.getSelectedRow() >= 0){
             String state = "lock";
             if("1".equals(tableModel.getValueAt(table.getSelectedRow(), 3) + "")){
@@ -252,6 +299,12 @@ public class MgmtUser extends javax.swing.JPanel {
     }//GEN-LAST:event_lockBtnActionPerformed
 
     private void chgpassBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_chgpassBtnActionPerformed
+        if (table.getSelectedRow() < 0) {
+            logValidationFailure("Attempted change password without selecting user");
+            JOptionPane.showMessageDialog(null, "No user selected!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         if(table.getSelectedRow() >= 0){
             JTextField password = new JPasswordField();
             JTextField confpass = new JPasswordField();
@@ -263,13 +316,53 @@ public class MgmtUser extends javax.swing.JPanel {
             };
 
             int result = JOptionPane.showConfirmDialog(null, message, "CHANGE PASSWORD", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
-            
+
             if (result == JOptionPane.OK_OPTION) {
-                System.out.println(password.getText());
-                System.out.println(confpass.getText());
+                String newPass = password.getText();
+                String confirmPass = confpass.getText();
+
+                if (newPass.trim().isEmpty() || confirmPass.trim().isEmpty()) {
+                    logValidationFailure("Attempted password change with blank fields for user: " +
+                            tableModel.getValueAt(table.getSelectedRow(), 0));
+                    JOptionPane.showMessageDialog(null, "Password fields cannot be blank!", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                if (!newPass.equals(confirmPass)) {
+                    logValidationFailure("Password mismatch on change attempt for user: " +
+                            tableModel.getValueAt(table.getSelectedRow(), 0));
+                    JOptionPane.showMessageDialog(null, "Passwords do not match!", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                PasswordCheckResult checkResult = PasswordStrengthChecker.checkStrength(newPass);
+                if (!checkResult.isValid) {
+                    logValidationFailure("Weak password attempt for user: " +
+                            tableModel.getValueAt(table.getSelectedRow(), 0) + " – " + checkResult.message);
+                    JOptionPane.showMessageDialog(null, checkResult.message, "Weak Password", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                System.out.println(newPass);
+
             }
         }
     }//GEN-LAST:event_chgpassBtnActionPerformed
+
+    public boolean attemptUserManagement(String action, String username, int userRole, String targetUser) {
+        int requiredRole = 5; // Admin role required
+
+        if (userRole >= requiredRole) {
+            sqlite.addSecurityLog(LogEventTypes.ACCESS_GRANTED, username,
+                    "User management access granted - Action: " + action + " on user: " + targetUser);
+            return true;
+        } else {
+            sqlite.addSecurityLog(LogEventTypes.ACCESS_DENIED, username,
+                    "User management access denied - Action: " + action + " on user: " + targetUser +
+                            " (User role: " + userRole + ", Required: " + requiredRole + ")");
+            return false;
+        }
+    }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

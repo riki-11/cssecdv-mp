@@ -5,6 +5,7 @@
  */
 package View;
 
+import Constants.LogEventTypes;
 import Controller.SQLite;
 import Model.Product;
 import java.util.ArrayList;
@@ -53,7 +54,15 @@ public class MgmtProduct extends javax.swing.JPanel {
 
         configureButtonVisibility(userRole);
     }
-    
+
+    private void logValidationFailure(String reason) {
+        sqlite.addSecurityLog(
+                LogEventTypes.INPUT_VALIDATION_FAILURE,
+                currentUsername != null ? currentUsername : "Unknown User",
+                reason
+        );
+    }
+
     public void designer(JTextField component, String text){
         component.setSize(70, 600);
         component.setFont(new java.awt.Font("Tahoma", 0, 18));
@@ -72,17 +81,17 @@ public class MgmtProduct extends javax.swing.JPanel {
 
         switch(userRole) {
             case 5: // Admin - full access
-                addBtn.setVisible(true);
-                editBtn.setVisible(true);
-                deleteBtn.setVisible(true);
-                purchaseBtn.setVisible(true);
+                addBtn.setVisible(false);
+                editBtn.setVisible(false);
+                deleteBtn.setVisible(false);
+                purchaseBtn.setVisible(false);
                 break;
 
             case 4: // Manager - can manage products
                 addBtn.setVisible(true);
                 editBtn.setVisible(true);
                 deleteBtn.setVisible(true);
-                purchaseBtn.setVisible(true);
+                purchaseBtn.setVisible(false);
                 break;
 
             case 3: // Staff - can manage products
@@ -223,15 +232,15 @@ public class MgmtProduct extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void purchaseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_purchaseBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
+        if (table.getSelectedRow() >= 0) {
             try {
                 // Get selected product information
                 String productName = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
                 int availableStock = Integer.parseInt(tableModel.getValueAt(table.getSelectedRow(), 1).toString());
                 double productPrice = Double.parseDouble(tableModel.getValueAt(table.getSelectedRow(), 2).toString());
 
-                // Check if product is in stock
                 if (availableStock <= 0) {
+                    logValidationFailure("Attempted to purchase out-of-stock product: " + productName);
                     JOptionPane.showMessageDialog(null,
                             "Sorry, '" + productName + "' is out of stock.",
                             "Out of Stock",
@@ -239,7 +248,7 @@ public class MgmtProduct extends javax.swing.JPanel {
                     return;
                 }
 
-                JTextField stockFld = new JTextField("1"); // Default to 1
+                JTextField stockFld = new JTextField("1");
                 designer(stockFld, "QUANTITY TO PURCHASE");
 
                 Object[] message = {
@@ -252,10 +261,21 @@ public class MgmtProduct extends javax.swing.JPanel {
                 int result = JOptionPane.showConfirmDialog(null, message, "PURCHASE PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
 
                 if (result == JOptionPane.OK_OPTION) {
-                    // Parse and validate purchase quantity
-                    int purchaseQuantity = Integer.parseInt(stockFld.getText().trim());
+                    String quantityText = stockFld.getText().trim();
+
+                    if (quantityText.isEmpty()) {
+                        logValidationFailure("Attempted purchase with empty quantity field for product: " + productName);
+                        JOptionPane.showMessageDialog(null,
+                                "Quantity field cannot be empty.",
+                                "Input Error",
+                                JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    int purchaseQuantity = Integer.parseInt(quantityText);
 
                     if (purchaseQuantity <= 0) {
+                        logValidationFailure("Attempted to purchase non-positive quantity (" + purchaseQuantity + ") for product: " + productName);
                         JOptionPane.showMessageDialog(null,
                                 "Please enter a valid quantity (greater than 0).",
                                 "Invalid Quantity",
@@ -264,6 +284,7 @@ public class MgmtProduct extends javax.swing.JPanel {
                     }
 
                     if (purchaseQuantity > availableStock) {
+                        logValidationFailure("Attempted to purchase quantity (" + purchaseQuantity + ") exceeding available stock (" + availableStock + ") for product: " + productName);
                         JOptionPane.showMessageDialog(null,
                                 "Cannot purchase " + purchaseQuantity + " items. Only " + availableStock + " available.",
                                 "Insufficient Stock",
@@ -271,10 +292,8 @@ public class MgmtProduct extends javax.swing.JPanel {
                         return;
                     }
 
-                    // Calculate total cost
                     double totalCost = purchaseQuantity * productPrice;
 
-                    // Confirm purchase
                     int confirmResult = JOptionPane.showConfirmDialog(null,
                             "Confirm Purchase:\n" +
                                     "Product: " + productName + "\n" +
@@ -287,13 +306,8 @@ public class MgmtProduct extends javax.swing.JPanel {
                             JOptionPane.QUESTION_MESSAGE);
 
                     if (confirmResult == JOptionPane.YES_OPTION) {
-                        // Process the purchase
-                        sqlite.processPurchase(productName, purchaseQuantity, productPrice, currentUsername); // You'll need to pass actual username
-
-                        // Refresh the table to show updated stock
+                        sqlite.processPurchase(productName, purchaseQuantity, currentUsername);
                         init();
-
-                        // Show success message
                         JOptionPane.showMessageDialog(null,
                                 "Purchase successful!\n" +
                                         "Purchased: " + purchaseQuantity + " x " + productName + "\n" +
@@ -304,23 +318,27 @@ public class MgmtProduct extends javax.swing.JPanel {
                 }
 
             } catch (NumberFormatException e) {
+                logValidationFailure("Non-numeric input for quantity during purchase attempt.");
                 JOptionPane.showMessageDialog(null,
                         "Please enter a valid number for quantity.",
                         "Invalid Input",
                         JOptionPane.ERROR_MESSAGE);
             } catch (Exception e) {
+                logValidationFailure("Unexpected error during purchase attempt: " + e.getMessage());
                 JOptionPane.showMessageDialog(null,
                         "Error processing purchase: " + e.getMessage(),
                         "Purchase Error",
                         JOptionPane.ERROR_MESSAGE);
             }
         } else {
+            logValidationFailure("Attempted to purchase without selecting a product.");
             JOptionPane.showMessageDialog(null,
                     "Please select a product to purchase.",
                     "No Selection",
                     JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_purchaseBtnActionPerformed
+
 
     private void addBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addBtnActionPerformed
         JTextField nameFld = new JTextField();
@@ -332,11 +350,10 @@ public class MgmtProduct extends javax.swing.JPanel {
         designer(priceFld, "PRODUCT PRICE");
 
         Object[] message = {
-            "Insert New Product Details:", nameFld, stockFld, priceFld
+                "Insert New Product Details:", nameFld, stockFld, priceFld
         };
 
         int result = JOptionPane.showConfirmDialog(null, message, "ADD PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
-
 
         if (result == JOptionPane.OK_OPTION) {
             try {
@@ -347,6 +364,8 @@ public class MgmtProduct extends javax.swing.JPanel {
 
                 // Validate inputs
                 if (name.isEmpty() || stockText.isEmpty() || priceText.isEmpty()) {
+                    logValidationFailure("Attempted to add product with missing fields: " +
+                            "Name='" + name + "', Stock='" + stockText + "', Price='" + priceText + "'");
                     JOptionPane.showMessageDialog(null, "Please fill in all fields.", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
@@ -357,11 +376,13 @@ public class MgmtProduct extends javax.swing.JPanel {
 
                 // Validate numeric ranges
                 if (stock < 0) {
+                    logValidationFailure("Attempted to add product with negative stock: " + stock + " for product '" + name + "'");
                     JOptionPane.showMessageDialog(null, "Stock cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
                 if (price < 0) {
+                    logValidationFailure("Attempted to add product with negative price: " + price + " for product '" + name + "'");
                     JOptionPane.showMessageDialog(null, "Price cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
@@ -376,25 +397,31 @@ public class MgmtProduct extends javax.swing.JPanel {
                 JOptionPane.showMessageDialog(null, "Product '" + name + "' added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
 
             } catch (NumberFormatException e) {
+                logValidationFailure("Invalid number format for stock or price. Stock='" + stockFld.getText() + "', Price='" + priceFld.getText() + "'");
                 JOptionPane.showMessageDialog(null, "Please enter valid numbers for stock and price.", "Error", JOptionPane.ERROR_MESSAGE);
             } catch (Exception e) {
+                logValidationFailure("Unexpected error during add product: " + e.getMessage());
                 JOptionPane.showMessageDialog(null, "Error adding product: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }//GEN-LAST:event_addBtnActionPerformed
-
     private void editBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editBtnActionPerformed
+        if (table.getSelectedRow() >= 0) {
+            // Declare here so we can use them in the catch block
+            JTextField nameFld = null;
+            JTextField stockFld = null;
+            JTextField priceFld = null;
 
-        if(table.getSelectedRow() >= 0){
+
             try {
                 // Get current values from selected row
                 String currentName = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
                 String currentStock = tableModel.getValueAt(table.getSelectedRow(), 1).toString();
                 String currentPrice = tableModel.getValueAt(table.getSelectedRow(), 2).toString();
 
-                JTextField nameFld = new JTextField(currentName);
-                JTextField stockFld = new JTextField(currentStock);
-                JTextField priceFld = new JTextField(currentPrice);
+                nameFld = new JTextField(currentName);
+                stockFld = new JTextField(currentStock);
+                priceFld = new JTextField(currentPrice);
 
                 designer(nameFld, "PRODUCT NAME");
                 designer(stockFld, "PRODUCT STOCK");
@@ -414,6 +441,8 @@ public class MgmtProduct extends javax.swing.JPanel {
 
                     // Validate inputs
                     if (newName.isEmpty() || stockText.isEmpty() || priceText.isEmpty()) {
+                        logValidationFailure("Attempted to edit product with missing fields: " +
+                                "NewName='" + newName + "', Stock='" + stockText + "', Price='" + priceText + "'");
                         JOptionPane.showMessageDialog(null, "Please fill in all fields.", "Error", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
@@ -424,11 +453,13 @@ public class MgmtProduct extends javax.swing.JPanel {
 
                     // Validate numeric ranges
                     if (stock < 0) {
+                        logValidationFailure("Attempted to edit product with negative stock: " + stock + " for product '" + newName + "'");
                         JOptionPane.showMessageDialog(null, "Stock cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
 
                     if (price < 0) {
+                        logValidationFailure("Attempted to edit product with negative price: " + price + " for product '" + newName + "'");
                         JOptionPane.showMessageDialog(null, "Price cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
@@ -442,18 +473,26 @@ public class MgmtProduct extends javax.swing.JPanel {
                     // Show success message
                     JOptionPane.showMessageDialog(null, "Product updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                 }
+
             } catch (NumberFormatException e) {
+                String stockVal = stockFld != null ? stockFld.getText() : "null";
+                String priceVal = priceFld != null ? priceFld.getText() : "null";
+                logValidationFailure("Invalid number format while editing product. Stock='" + stockVal + "', Price='" + priceVal + "'");
                 JOptionPane.showMessageDialog(null, "Please enter valid numbers for stock and price.", "Error", JOptionPane.ERROR_MESSAGE);
+
             } catch (Exception e) {
+                logValidationFailure("Unexpected error during edit product: " + e.getMessage());
                 JOptionPane.showMessageDialog(null, "Error updating product: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
+
         } else {
+            logValidationFailure("Attempted to edit product with no row selected.");
             JOptionPane.showMessageDialog(null, "Please select a product to edit.", "No Selection", JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_editBtnActionPerformed
 
-    private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {
-        if(table.getSelectedRow() >= 0){
+    private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteBtnActionPerformed
+        if (table.getSelectedRow() >= 0) {
             String productName = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
 
             int result = JOptionPane.showConfirmDialog(null,
@@ -478,10 +517,26 @@ public class MgmtProduct extends javax.swing.JPanel {
                 }
             }
         } else {
+            logValidationFailure("Attempted to delete without selecting a product.");
             JOptionPane.showMessageDialog(null, "Please select a product to delete.", "No Selection", JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_deleteBtnActionPerformed
 
+
+    public boolean attemptProductAction(String action, String username, int userRole) {
+        int requiredRole = 4; // Manager role or higher
+
+        if (userRole >= requiredRole) {
+            sqlite.addSecurityLog(LogEventTypes.ACCESS_GRANTED, username,
+                    "Product management access granted - Action: " + action);
+            return true;
+        } else {
+            sqlite.addSecurityLog(LogEventTypes.ACCESS_DENIED, username,
+                    "Product management access denied - Action: " + action +
+                            " (User role: " + userRole + ", Required: " + requiredRole + ")");
+            return false;
+        }
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton addBtn;
