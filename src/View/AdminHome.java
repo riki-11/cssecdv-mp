@@ -33,6 +33,7 @@ public class AdminHome extends javax.swing.JPanel {
     private int currentUserRole;
     private SQLite sqlite;
 
+
     public AdminHome() {
         initComponents();
     }
@@ -46,7 +47,7 @@ public class AdminHome extends javax.swing.JPanel {
         mgmtHistory = new MgmtHistory(sqlite);
         mgmtLogs = new MgmtLogs(sqlite);
         mgmtProduct = new MgmtProduct(sqlite, currentUserRole, username);
-        mgmtUser = new MgmtUser(sqlite, currentUserRole);
+        mgmtUser = new MgmtUser(sqlite, currentUserRole, currentUsername);
 
         Content.setLayout(contentView);
         Content.add(new Home("WELCOME ADMIN!", new java.awt.Color(51, 153, 255)), "home");
@@ -205,16 +206,12 @@ public class AdminHome extends javax.swing.JPanel {
     }
 
     private void logsBtnActionPerformed(java.awt.event.ActionEvent evt) {
-        if (checkAdminAccess(currentUsername, currentUserRole, "View Logs")) {
-            mgmtLogs.init();
-            usersBtn.setForeground(Color.black);
-            productsBtn.setForeground(Color.black);
-            historyBtn.setForeground(Color.black);
-            logsBtn.setForeground(Color.red);
-            contentView.show(Content, "mgmtLogs");
-        } else {
-            JOptionPane.showMessageDialog(this, "Access Denied", "Security Error", JOptionPane.ERROR_MESSAGE);
-        }
+        mgmtLogs.init();
+        usersBtn.setForeground(Color.black);
+        productsBtn.setForeground(Color.black);
+        historyBtn.setForeground(Color.black);
+        logsBtn.setForeground(Color.red);
+        contentView.show(Content, "mgmtLogs");
     }
 
 
