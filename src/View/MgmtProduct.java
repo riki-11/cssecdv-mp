@@ -306,7 +306,7 @@ public class MgmtProduct extends javax.swing.JPanel {
                             JOptionPane.QUESTION_MESSAGE);
 
                     if (confirmResult == JOptionPane.YES_OPTION) {
-                        sqlite.processPurchase(productName, purchaseQuantity, currentUsername);
+                        sqlite.processPurchase(productName, purchaseQuantity, productPrice, currentUsername);
                         init();
                         JOptionPane.showMessageDialog(null,
                                 "Purchase successful!\n" +
