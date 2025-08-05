@@ -6,6 +6,7 @@ import Model.Product;
 import Model.User;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -18,6 +19,7 @@ import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 
 import Constants.LogEventTypes;
+import dto.AuthenticationCheckResult;
 
 public class SQLite {
     
@@ -82,6 +84,60 @@ public class SQLite {
             return slowEquals(hash, testHash);
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    public LocalDateTime incrementUserFailedAttempts(String username, Connection conn) {
+        String updateSql = "UPDATE users set failedAttempts = failedAttempts + 1 WHERE username = ?";
+        String selectSql = "SELECT failedAttempts from users WHERE username = ?";
+        String lockSql = "UPDATE users set lockedUntil = ?, failedAttempts = 0 WHERE username = ?";
+
+        try {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("PRAGMA busy_timeout = WAL");
+            }
+
+            try(PreparedStatement update = conn.prepareStatement(updateSql)) {
+                update.setString(1, username);
+                update.executeUpdate();
+            }
+
+            int failedAttempts = 0;
+
+            try(PreparedStatement select = conn.prepareStatement(selectSql)){
+                select.setString(1, username);
+                try(ResultSet rs = select.executeQuery()) {
+                    if (rs.next()) {
+                        failedAttempts = rs.getInt("failedAttempts");
+                    }
+                }
+            }
+
+            if(failedAttempts >= 5) {
+                //TODO adjust to 15 after testing
+                LocalDateTime lockUntil = LocalDateTime.now().plusMinutes(1);
+                try (PreparedStatement lockStmt = conn.prepareStatement(lockSql)) {
+                    lockStmt.setTimestamp(1, Timestamp.valueOf(lockUntil));
+                    lockStmt.setString(2, username);
+                    lockStmt.executeUpdate();
+                }
+                return lockUntil;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public void resetUserFailedAttemptsAndLockout(String username, Connection conn) {
+        String sql = "UPDATE users set failedAttempts = 0, lockedUntil = NULL WHERE username = ?";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, username);
+                pstmt.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -199,7 +255,8 @@ public class SQLite {
             + " username TEXT NOT NULL UNIQUE,\n"
             + " password TEXT NOT NULL,\n"
             + " role INTEGER DEFAULT 2,\n"
-            + " locked INTEGER DEFAULT 0\n"
+            + " failedAttempts INTEGER DEFAULT 0,\n"
+            + " lockedUntil DATETIME DEFAULT NULL\n"
             + ");";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -531,7 +588,7 @@ public class SQLite {
     }
 
     public ArrayList<User> getUsers(){
-        String sql = "SELECT id, username, password, role, locked FROM users";
+        String sql = "SELECT id, username, password, role, failedAttmpts, lockedUntil FROM users";
         ArrayList<User> users = new ArrayList<User>();
         
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -543,7 +600,8 @@ public class SQLite {
                                    rs.getString("username"),
                                    rs.getString("password"),
                                    rs.getInt("role"),
-                                   rs.getInt("locked")));
+                                   rs.getInt("failedAttempts"),
+                                   rs.getTimestamp("lockedUntil")));
             }
         } catch (Exception ex) {}
         return users;
@@ -575,7 +633,7 @@ public class SQLite {
     }
 
     public User getUserByUsername(String username) {
-        String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil FROM users WHERE username = ?";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -589,7 +647,8 @@ public class SQLite {
                         rs.getString("username"),
                         rs.getString("password"),
                         rs.getInt("role"),
-                        rs.getInt("locked"));
+                        rs.getInt("failedAttempts"),
+                        rs.getTimestamp("lockedUntil"));
             }
         } catch (Exception ex) {
             System.out.println(ex);
@@ -640,8 +699,8 @@ public class SQLite {
     }
 
     // Enhanced authentication method with logging
-    public User authenticateUser(String username, String password) {
-        String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
+    public AuthenticationCheckResult authenticateUser(String username, String password) {
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil FROM users WHERE username = ?";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -652,22 +711,22 @@ public class SQLite {
             // Input validation
             if (username == null || username.trim().isEmpty()) {
                 addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, "UNKNOWN", "Username is empty", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true);
             }
 
             if (password == null || password.isEmpty()) {
                 addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, "Password is empty", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true);
             }
 
             if (username.length() > 50) {
                 addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, "Username too long", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true);
             }
 
             if (password.length() > 200) {
                 addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, "Password too long", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true);
             }
 
             // Basic SQL injection pattern check
@@ -675,7 +734,7 @@ public class SQLite {
             for (String pattern : sqlPatterns) {
                 if (username.toUpperCase().contains(pattern.toUpperCase())) {
                     addSecurityLog(LogEventTypes.SECURITY_VIOLATION, username, "Suspicious input: " + pattern, conn);
-                    return null;
+                    return new AuthenticationCheckResult(null, false, null, true);
                 }
             }
 
@@ -683,9 +742,10 @@ public class SQLite {
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
-                if (rs.getInt("locked") == 1) {
+                if (rs.getTimestamp("lockedUntil") != null && rs.getTimestamp("lockedUntil").toLocalDateTime().isAfter(LocalDateTime.now())) {
                     addSecurityLog(LogEventTypes.AUTH_ACCOUNT_LOCKED, username, "Account is locked", conn);
-                    return null;
+                    return new AuthenticationCheckResult(null, true, rs.getTimestamp("lockedUntil").toLocalDateTime(), false);
+
                 }
 
                 String storedHashedPassword = rs.getString("password");
@@ -696,18 +756,24 @@ public class SQLite {
                             rs.getString("username"),
                             storedHashedPassword,
                             rs.getInt("role"),
-                            rs.getInt("locked")
+                            rs.getInt("failedAttempts"),
+                            rs.getTimestamp("lockedUntil")
                     );
 
                     addSecurityLog(LogEventTypes.AUTH_SUCCESS, username, "Login success - Role: " + user.getRole(), conn);
-                    return user;
+                    resetUserFailedAttemptsAndLockout(username, conn);
+                    return new AuthenticationCheckResult(user, false, null, false);
                 } else {
                     addSecurityLog(LogEventTypes.AUTH_FAILURE, username, "Invalid password", conn);
-                    return null;
+                    LocalDateTime locked = incrementUserFailedAttempts(username, conn);
+
+                    boolean flag = locked != null;
+
+                    return new AuthenticationCheckResult(null, flag, locked, false);
                 }
             } else {
                 addSecurityLog(LogEventTypes.AUTH_FAILURE, username, "Username not found", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true);
             }
 
         } catch (Exception ex) {

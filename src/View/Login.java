@@ -3,6 +3,7 @@ package View;
 
 import Controller.SQLite;
 import Model.User;
+import dto.AuthenticationCheckResult;
 
 import javax.swing.*;
 
@@ -93,7 +94,8 @@ public class Login extends javax.swing.JPanel {
         String password = new String(passwordFld.getPassword());
 
         // Use the enhanced authentication method with logging
-        User user = sqlite.authenticateUser(username, password);
+        AuthenticationCheckResult result = sqlite.authenticateUser(username, password);
+        User user = result.user;
 
         if (user != null) {
             JOptionPane.showMessageDialog(this, "Login successful! Welcome " + username, "Success", JOptionPane.INFORMATION_MESSAGE);
@@ -103,8 +105,13 @@ public class Login extends javax.swing.JPanel {
 
             frame.hideButtons(role);
             frame.mainNav(role, username);
-        } else {
-            // Generic error message for security (don't reveal why it failed)
+        } else if(result.invalidInput) {
+            JOptionPane.showMessageDialog(this, "Ensure proper input (No empty fields, too many characters, or suspicious sql input)", "Login Failed", JOptionPane.ERROR_MESSAGE);
+        }
+        else if(result.isLocked) {
+            JOptionPane.showMessageDialog(this, "Too many failed login attempts. Account is locked until " + result.time, "Login Failed", JOptionPane.ERROR_MESSAGE);
+        }
+        else {
             JOptionPane.showMessageDialog(this, "Invalid username and/or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
         }
 
