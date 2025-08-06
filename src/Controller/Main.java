@@ -99,6 +99,7 @@ public class Main {
             System.out.println(" Role: " + users.get(nCtr).getRole());
             System.out.println(" Failed Attempts: " + users.get(nCtr).getFailedAttempts());
             System.out.println(" Locked Until: " + users.get(nCtr).getLockedUntil());
+            System.out.println(" Last Used: " + users.get(nCtr).getLastUsed());
         }
         
         // Initialize User Interface

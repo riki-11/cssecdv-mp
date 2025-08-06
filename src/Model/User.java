@@ -10,8 +10,10 @@ public class User {
     private int role = 2;
     private int failedAttempts = 0;
     private LocalDateTime lockedUntil;
+    private LocalDateTime lastUsed;
 
-    public User(int id, String username, String password, int role, int failedAttempts, Timestamp lockedUntil){
+    public User(int id, String username, String password, int role, int failedAttempts, Timestamp lockedUntil, Timestamp lastUsed){
+        this.id = id;
         this.username = username;
         this.password = password;
         this.role = role;
@@ -21,6 +23,12 @@ public class User {
             this.lockedUntil = null;
         } else {
             this.lockedUntil = lockedUntil.toLocalDateTime();
+        }
+
+        if(lastUsed == null) {
+            this.lastUsed = null;
+        } else {
+            this.lastUsed = lastUsed.toLocalDateTime();
         }
     }
     
@@ -77,5 +85,13 @@ public class User {
 
     public void setLockedUntil(LocalDateTime lockedUntil) {
         this.lockedUntil = lockedUntil;
+    }
+
+    public LocalDateTime getLastUsed() {
+        return lastUsed;
+    }
+
+    public void setLastUsed(LocalDateTime lastUsed) {
+        this.lastUsed = lastUsed;
     }
 }

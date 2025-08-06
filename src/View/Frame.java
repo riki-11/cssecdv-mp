@@ -313,6 +313,7 @@ public class Frame extends javax.swing.JFrame {
     public Main main;
     public Login loginPnl = new Login();
     public Register registerPnl = new Register();
+    public PasswordChange passwordResetPnl;
 
     private AdminHome adminHomePnl = new AdminHome();
     private ManagerHome managerHomePnl = new ManagerHome();
@@ -342,6 +343,7 @@ public class Frame extends javax.swing.JFrame {
         this.main = controller;
         loginPnl.frame = this;
         registerPnl.frame = this;
+        this.passwordResetPnl = new PasswordChange(main.sqlite);
 
 //        adminHomePnl.init(main.sqlite);
 //        clientHomePnl.init(main.sqlite);
@@ -353,6 +355,7 @@ public class Frame extends javax.swing.JFrame {
         Container.add(registerPnl, "registerPnl");
         Container.add(HomePnl, "homePnl");
         frameView.show(Container, "loginPnl");
+        Container.add(passwordResetPnl, "passwordResetPnl");
 
         Content.setLayout(contentView);
         Content.add(adminHomePnl, "adminHomePnl");
@@ -374,6 +377,12 @@ public class Frame extends javax.swing.JFrame {
 
         frameView.show(Container, "homePnl");
         showPanel(role);
+    }
+
+    public void passwordResetNav() {
+        passwordResetPnl.resetStep = 1; // Reset to first step
+        passwordResetPnl.updateFormState();
+        frameView.show(Container, "passwordResetPnl");
     }
 
     public void loginNav() {

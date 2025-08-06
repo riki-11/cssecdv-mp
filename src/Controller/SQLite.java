@@ -256,7 +256,8 @@ public class SQLite {
             + " password TEXT NOT NULL,\n"
             + " role INTEGER DEFAULT 2,\n"
             + " failedAttempts INTEGER DEFAULT 0,\n"
-            + " lockedUntil DATETIME DEFAULT NULL\n"
+            + " lockedUntil DATETIME DEFAULT NULL,\n"
+            + " lastUsed DATETIME DEFAULT NULL\n"
             + ");";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -601,7 +602,8 @@ public class SQLite {
                                    rs.getString("password"),
                                    rs.getInt("role"),
                                    rs.getInt("failedAttempts"),
-                                   rs.getTimestamp("lockedUntil")));
+                                   rs.getTimestamp("lockedUntil"),
+                                   rs.getTimestamp("lastUsed")));
             }
         } catch (Exception ex) {}
         return users;
@@ -648,7 +650,8 @@ public class SQLite {
                         rs.getString("password"),
                         rs.getInt("role"),
                         rs.getInt("failedAttempts"),
-                        rs.getTimestamp("lockedUntil"));
+                        rs.getTimestamp("lockedUntil"),
+                        rs.getTimestamp("lastUsed"));
             }
         } catch (Exception ex) {
             System.out.println(ex);
@@ -757,7 +760,8 @@ public class SQLite {
                             storedHashedPassword,
                             rs.getInt("role"),
                             rs.getInt("failedAttempts"),
-                            rs.getTimestamp("lockedUntil")
+                            rs.getTimestamp("lockedUntil"),
+                            rs.getTimestamp("lastUsed")
                     );
 
                     addSecurityLog(LogEventTypes.AUTH_SUCCESS, username, "Login success - Role: " + user.getRole(), conn);
@@ -883,5 +887,13 @@ public class SQLite {
                     "User registration failed - Database error");
         }
         return result;
+    }
+
+    public boolean verifySecurityAnswers(String username, String answer1, String answer2) {
+        return true;
+    }
+
+    public boolean resetPassword(String username, String password) {
+        return true;
     }
 }
