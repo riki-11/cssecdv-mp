@@ -114,8 +114,7 @@ public class SQLite {
             }
 
             if(failedAttempts >= 5) {
-                //TODO adjust to 15 after testing
-                LocalDateTime lockUntil = LocalDateTime.now().plusMinutes(1);
+                LocalDateTime lockUntil = LocalDateTime.now().plusMinutes(15);
                 try (PreparedStatement lockStmt = conn.prepareStatement(lockSql)) {
                     lockStmt.setTimestamp(1, Timestamp.valueOf(lockUntil));
                     lockStmt.setString(2, username);
