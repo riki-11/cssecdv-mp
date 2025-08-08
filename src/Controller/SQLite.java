@@ -143,18 +143,23 @@ public class SQLite {
 
     public boolean updateUserPassword(String username, String newPassword) {
         String hashedPassword = hashPassword(newPassword);
-        String sql = "UPDATE users SET password = ? WHERE username = ?";
+        String sql = "UPDATE users SET password = ?, lastPasswordUpdate = ? WHERE username = ?";
+
+        LocalDateTime lastUpdated = LocalDateTime.now();
+        Timestamp cooldownTimestamp = Timestamp.valueOf(lastUpdated);
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, hashedPassword);
-            pstmt.setString(2, username);
+            pstmt.setTimestamp(2, cooldownTimestamp);
+            pstmt.setString(3, username);
 
             int affectedRows = pstmt.executeUpdate();
 
             if (affectedRows > 0) {
                 System.out.println("Password updated successfully for user: " + username);
+
                 return true;
             } else {
                 System.out.println("No user found with username: " + username);
@@ -259,7 +264,8 @@ public class SQLite {
             + " lockedUntil DATETIME DEFAULT NULL,\n"
             + " lastUsed DATETIME DEFAULT NULL,\n"
             + " hashedAnswerFriend TEXT NOT NULL,\n"
-            + " hashedAnswerCar TEXT NOT NULL\n"
+            + " hashedAnswerCar TEXT NOT NULL,\n"
+            + " lastPasswordUpdate DATETIME DEFAULT NULL"
             + ");";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -594,8 +600,9 @@ public class SQLite {
         }
     }
 
+    //TODO : update to match user fields
     public ArrayList<User> getUsers(){
-        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar FROM users";
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar, lastPasswordUpdate FROM users";
         ArrayList<User> users = new ArrayList<User>();
         
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -611,7 +618,8 @@ public class SQLite {
                                    rs.getTimestamp("lockedUntil"),
                                    rs.getTimestamp("lastUsed"),
                                    rs.getString("hashedAnswerCar"),
-                                   rs.getString("hashedAnswerFriend")));
+                                   rs.getString("hashedAnswerFriend"),
+                                   rs.getTimestamp("lastPasswordUpdate")));
             }
         } catch (Exception ex) {}
         return users;
@@ -646,7 +654,7 @@ public class SQLite {
 
     //TODO ensure follows fields of user
     public User getUserByUsername(String username) {
-        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar FROM users WHERE username = ?";
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar, lastPasswordUpdate FROM users WHERE username = ?";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -664,7 +672,8 @@ public class SQLite {
                         rs.getTimestamp("lockedUntil"),
                         rs.getTimestamp("lastUsed"),
                         rs.getString("hashedAnswerFriend"),
-                        rs.getString("hashedAnswerCar"));
+                        rs.getString("hashedAnswerCar"),
+                        rs.getTimestamp("lastPasswordUpdate"));
             }
         } catch (Exception ex) {
             System.out.println(ex);
@@ -717,7 +726,7 @@ public class SQLite {
     // Enhanced authentication method with logging
     public AuthenticationCheckResult authenticateUser(String username, String password) {
         //TODO: ensure follows fields of user
-        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar FROM users WHERE username = ?";
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar, lastPasswordUpdate FROM users WHERE username = ?";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -777,7 +786,8 @@ public class SQLite {
                             rs.getTimestamp("lockedUntil"),
                             rs.getTimestamp("lastUsed"),
                             rs.getString("hashedAnswerFriend"),
-                            rs.getString("hashedAnswerCar")
+                            rs.getString("hashedAnswerCar"),
+                            rs.getTimestamp("lastPasswordUpdate")
                     );
 
                     addSecurityLog(LogEventTypes.AUTH_SUCCESS, username, "Login success - Role: " + user.getRole(), conn);

@@ -13,8 +13,9 @@ public class User {
     private LocalDateTime lastUsed;
     private String hashedAnswerFriend;
     private String hashedAnswerCar;
+    private LocalDateTime lastPasswordUpdate;
 
-    public User(int id, String username, String password, int role, int failedAttempts, Timestamp lockedUntil, Timestamp lastUsed, String hashedAnswerFriend, String hashedAnswerCar){
+    public User(int id, String username, String password, int role, int failedAttempts, Timestamp lockedUntil, Timestamp lastUsed, String hashedAnswerFriend, String hashedAnswerCar, Timestamp lastPasswordUpdate){
         this.id = id;
         this.username = username;
         this.password = password;
@@ -35,6 +36,12 @@ public class User {
 
         this.hashedAnswerCar = hashedAnswerCar;
         this.hashedAnswerFriend = hashedAnswerFriend;
+
+        if(lastPasswordUpdate == null) {
+            this.lastPasswordUpdate = null;
+        } else {
+            this.lastPasswordUpdate = lastPasswordUpdate.toLocalDateTime();
+        }
     }
     
     public User(int id, String username, String password, int role){
@@ -98,5 +105,29 @@ public class User {
 
     public void setLastUsed(LocalDateTime lastUsed) {
         this.lastUsed = lastUsed;
+    }
+
+    public String getHashedAnswerFriend() {
+        return hashedAnswerFriend;
+    }
+
+    public void setHashedAnswerFriend(String hashedAnswerFriend) {
+        this.hashedAnswerFriend = hashedAnswerFriend;
+    }
+
+    public String getHashedAnswerCar() {
+        return hashedAnswerCar;
+    }
+
+    public void setHashedAnswerCar(String hashedAnswerCar) {
+        this.hashedAnswerCar = hashedAnswerCar;
+    }
+
+    public LocalDateTime getLastPasswordUpdate() {
+        return lastPasswordUpdate;
+    }
+
+    public void setLastPasswordUpdate(LocalDateTime lastPasswordUpdate) {
+        this.lastPasswordUpdate = lastPasswordUpdate;
     }
 }

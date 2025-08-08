@@ -57,7 +57,11 @@ public class MgmtUser extends javax.swing.JPanel {
                 users.get(nCtr).getRole(), 
                 users.get(nCtr).getFailedAttempts(),
                 users.get(nCtr).getLockedUntil(),
-                users.get(nCtr).getLastUsed()});
+                users.get(nCtr).getLastUsed(),
+                users.get(nCtr).getHashedAnswerFriend(),
+                users.get(nCtr).getHashedAnswerCar(),
+                users.get(nCtr).getLastPasswordUpdate()
+            });
         }
     }
 

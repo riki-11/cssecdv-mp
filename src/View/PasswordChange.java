@@ -1,10 +1,13 @@
 package View;
 
 import Controller.SQLite;
+import Model.User;
 import Service.PasswordStrengthChecker;
 import dto.PasswordCheckResult;
 
 import javax.swing.*;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 public class PasswordChange extends javax.swing.JPanel {
 
@@ -50,7 +53,7 @@ public class PasswordChange extends javax.swing.JPanel {
 
         // Security questions that don't have common answers
         securityQuestion1Label.setFont(new java.awt.Font("Tahoma", 0, 14));
-        securityQuestion1Label.setText("What was the name of your first grade teacher?");
+        securityQuestion1Label.setText("What was the name of your childhood best friend?");
 
         securityAnswer1Fld.setBackground(new java.awt.Color(240, 240, 240));
         securityAnswer1Fld.setFont(new java.awt.Font("Tahoma", 0, 14));
@@ -176,11 +179,28 @@ public class PasswordChange extends javax.swing.JPanel {
                     return;
                 }
 
-                if (sqlite.getUserByUsername(username) == null) {
+                // Get user including password change timestamp
+                User user = sqlite.getUserByUsername(username);
+                if (user == null) {
                     JOptionPane.showMessageDialog(this, "Username not found", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
+                // Check if password was recently changed
+                if (user.getLastPasswordUpdate() != null) {
+                    LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime cooldownEnd = user.getLastPasswordUpdate().plusHours(24); // 24-hour cooldown
+
+                    if (now.isBefore(cooldownEnd)) {
+                        long hoursRemaining = ChronoUnit.HOURS.between(now, cooldownEnd);
+                        JOptionPane.showMessageDialog(this,
+                                "Password was recently changed. Please wait " + hoursRemaining + " more hours before changing again.",
+                                "Cooldown Active",
+                                JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                }
+                usernameFld.setText("");
                 currentUsername = username;
                 resetStep = 2;
                 updateFormState();
@@ -202,6 +222,8 @@ public class PasswordChange extends javax.swing.JPanel {
                     return;
                 }
 
+                securityAnswer1Fld.setText("");
+                securityAnswer2Fld.setText("");
                 resetStep = 3;
                 updateFormState();
                 break;
@@ -241,6 +263,8 @@ public class PasswordChange extends javax.swing.JPanel {
                 } else {
                     JOptionPane.showMessageDialog(this, "Failed to reset password", "Error", JOptionPane.ERROR_MESSAGE);
                 }
+                newPasswordFld.setText("");
+                confirmPasswordFld.setText("");
                 break;
         }
     }

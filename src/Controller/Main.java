@@ -101,6 +101,9 @@ public class Main {
             System.out.println(" Failed Attempts: " + users.get(nCtr).getFailedAttempts());
             System.out.println(" Locked Until: " + users.get(nCtr).getLockedUntil());
             System.out.println(" Last Used: " + users.get(nCtr).getLastUsed());
+            System.out.println(" Hashed Friend: " + users.get(nCtr).getHashedAnswerFriend());
+            System.out.println(" Hashed Car: " + users.get(nCtr).getHashedAnswerFriend());
+            System.out.println(" Last Password Update: " + users.get(nCtr).getLastPasswordUpdate());
         }
         
         // Initialize User Interface
