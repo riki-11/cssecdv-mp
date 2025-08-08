@@ -257,7 +257,9 @@ public class SQLite {
             + " role INTEGER DEFAULT 2,\n"
             + " failedAttempts INTEGER DEFAULT 0,\n"
             + " lockedUntil DATETIME DEFAULT NULL,\n"
-            + " lastUsed DATETIME DEFAULT NULL\n"
+            + " lastUsed DATETIME DEFAULT NULL,\n"
+            + " hashedAnswerFriend TEXT NOT NULL,\n"
+            + " hashedAnswerCar TEXT NOT NULL\n"
             + ");";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -417,15 +419,19 @@ public class SQLite {
     }
 
     // Improved addUser method with PreparedStatement (more secure)
-    public boolean addUser(String username, String password) {
+    public boolean addUser(String username, String password, String friend, String car) {
         String hashedPassword = hashPassword(password);
-        String sql = "INSERT INTO users(username,password) VALUES(?,?)";
+        String hashedFriend = hashPassword(friend);
+        String hashedCar = hashPassword(car);
+        String sql = "INSERT INTO users(username,password,hashedAnswerFriend,hashedAnswerCar) VALUES(?,?,?,?)";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
             pstmt.setString(2, hashedPassword);
+            pstmt.setString(3, hashedFriend);
+            pstmt.setString(4, hashedCar);
             pstmt.executeUpdate();
 
             System.out.println("User '" + username + "' added successfully.");
@@ -589,7 +595,7 @@ public class SQLite {
     }
 
     public ArrayList<User> getUsers(){
-        String sql = "SELECT id, username, password, role, failedAttmpts, lockedUntil FROM users";
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar FROM users";
         ArrayList<User> users = new ArrayList<User>();
         
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -603,15 +609,19 @@ public class SQLite {
                                    rs.getInt("role"),
                                    rs.getInt("failedAttempts"),
                                    rs.getTimestamp("lockedUntil"),
-                                   rs.getTimestamp("lastUsed")));
+                                   rs.getTimestamp("lastUsed"),
+                                   rs.getString("hashedAnswerCar"),
+                                   rs.getString("hashedAnswerFriend")));
             }
         } catch (Exception ex) {}
         return users;
     }
     
-    public void addUser(String username, String password, int role) {
+    public void addUser(String username, String password, int role, String friend, String car) {
         String hashedPassword = hashPassword(password);
-        String sql = "INSERT INTO users(username,password,role) VALUES('" + username + "','" + hashedPassword + "','" + role + "')";
+        String hashedFriend = hashPassword(friend);
+        String hashedCar = hashPassword(car);
+        String sql = "INSERT INTO users(username,password,role,hashedAnswerFriend,hashedAnswerCar) VALUES('" + username + "','" + hashedPassword + "','" + role + "','" + hashedFriend + "','" + hashedCar + "')";
         
         try (Connection conn = DriverManager.getConnection(driverURL);
             Statement stmt = conn.createStatement()){
@@ -634,8 +644,9 @@ public class SQLite {
         }
     }
 
+    //TODO ensure follows fields of user
     public User getUserByUsername(String username) {
-        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil FROM users WHERE username = ?";
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar FROM users WHERE username = ?";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -651,7 +662,9 @@ public class SQLite {
                         rs.getInt("role"),
                         rs.getInt("failedAttempts"),
                         rs.getTimestamp("lockedUntil"),
-                        rs.getTimestamp("lastUsed"));
+                        rs.getTimestamp("lastUsed"),
+                        rs.getString("hashedAnswerFriend"),
+                        rs.getString("hashedAnswerCar"));
             }
         } catch (Exception ex) {
             System.out.println(ex);
@@ -703,7 +716,8 @@ public class SQLite {
 
     // Enhanced authentication method with logging
     public AuthenticationCheckResult authenticateUser(String username, String password) {
-        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil FROM users WHERE username = ?";
+        //TODO: ensure follows fields of user
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar FROM users WHERE username = ?";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -761,7 +775,9 @@ public class SQLite {
                             rs.getInt("role"),
                             rs.getInt("failedAttempts"),
                             rs.getTimestamp("lockedUntil"),
-                            rs.getTimestamp("lastUsed")
+                            rs.getTimestamp("lastUsed"),
+                            rs.getString("hashedAnswerFriend"),
+                            rs.getString("hashedAnswerCar")
                     );
 
                     addSecurityLog(LogEventTypes.AUTH_SUCCESS, username, "Login success - Role: " + user.getRole(), conn);
@@ -877,8 +893,8 @@ public class SQLite {
     }
 
     // Method to complete registration after password strength validation
-    public boolean completeUserRegistration(String username, String password) {
-        boolean result = addUser(username, password);
+    public boolean completeUserRegistration(String username, String password, String securityAnswerCar, String securityAnswerFriend) {
+        boolean result = addUser(username, password, securityAnswerFriend, securityAnswerCar);
         if (result) {
             addSecurityLog(LogEventTypes.AUTH_SUCCESS, username,
                     "User registration completed successfully");
@@ -889,11 +905,40 @@ public class SQLite {
         return result;
     }
 
-    public boolean verifySecurityAnswers(String username, String answer1, String answer2) {
-        return true;
-    }
+    //TODO idk if u wanna add extra security logs pa
+    public boolean verifySecurityAnswers(String username, String answerFriend, String answerCar) {
+        String sql = "SELECT hashedAnswerFriend, hashedAnswerCar FROM users WHERE username = ?";
+        ResultSet resultSet = null;
 
-    public boolean resetPassword(String username, String password) {
-        return true;
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            // Log authentication attempt
+            addSecurityLog(LogEventTypes.AUTH_SUCCESS, username, "Authentication attempt initiated", conn);
+
+
+            // Basic SQL injection pattern check
+            String[] sqlPatterns = {"'", "\"", ";", "--", "/*", "*/", "xp_", "sp_", "DROP", "SELECT", "INSERT", "UPDATE", "DELETE"};
+            for (String pattern : sqlPatterns) {
+                if (answerFriend.toUpperCase().contains(pattern.toUpperCase()) || answerCar.toUpperCase().contains(pattern.toUpperCase())) {
+                    addSecurityLog(LogEventTypes.SECURITY_VIOLATION, username, "Suspicious input: " + pattern, conn);
+                    return false;
+                }
+            }
+
+            pstmt.setString(1, username);
+            resultSet = pstmt.executeQuery();
+
+            if(resultSet.next()) {
+                String storedFriend = resultSet.getString("hashedAnswerFriend");
+                String storedCar = resultSet.getString("hashedAnswerCar");
+
+                return verifyPassword(answerFriend, storedFriend) && verifyPassword(answerCar, storedCar);
+            }
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }

@@ -1,6 +1,8 @@
 package View;
 
 import Controller.SQLite;
+import Service.PasswordStrengthChecker;
+import dto.PasswordCheckResult;
 
 import javax.swing.*;
 
@@ -11,8 +13,9 @@ public class PasswordChange extends javax.swing.JPanel {
     private String currentUsername; // To track user during reset process
     int resetStep = 1; // 1=verify identity, 2=answer questions, 3=new password
 
-    public PasswordChange(SQLite sqlite) {
+    public PasswordChange(SQLite sqlite, Frame frame) {
         this.sqlite = sqlite;
+        this.frame = frame;
         initComponents();
         updateFormState();
     }
@@ -158,7 +161,7 @@ public class PasswordChange extends javax.swing.JPanel {
         if (resetStep == 1) {
             nextBtn.setText("VERIFY");
         } else if (resetStep == 2) {
-            nextBtn.setText("VALIDATE");
+            nextBtn.setText("ENTER");
         } else {
             nextBtn.setText("RESET");
         }
@@ -184,16 +187,18 @@ public class PasswordChange extends javax.swing.JPanel {
                 break;
 
             case 2: // Verify security questions
-                String answer1 = securityAnswer1Fld.getText().trim();
-                String answer2 = securityAnswer2Fld.getText().trim();
+                String answerFriend = securityAnswer1Fld.getText().trim();
+                String answerCar = securityAnswer2Fld.getText().trim();
 
-                if (answer1.isEmpty() || answer2.isEmpty()) {
+                if (answerFriend.isEmpty() || answerCar.isEmpty()) {
                     JOptionPane.showMessageDialog(this, "Please answer both security questions", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                if (!sqlite.verifySecurityAnswers(currentUsername, answer1, answer2)) {
+                if (!sqlite.verifySecurityAnswers(currentUsername, answerFriend, answerCar)) {
                     JOptionPane.showMessageDialog(this, "Security answers don't match our records", "Error", JOptionPane.ERROR_MESSAGE);
+                    securityAnswer1Fld.setText("");
+                    securityAnswer2Fld.setText("");
                     return;
                 }
 
@@ -210,14 +215,27 @@ public class PasswordChange extends javax.swing.JPanel {
                     return;
                 }
 
+                PasswordCheckResult passwordResult = PasswordStrengthChecker.checkStrength(newPassword);
+
+                if (!passwordResult.isValid) {
+
+                    JOptionPane.showMessageDialog(this,
+                            passwordResult.message,
+                            "Reset Error",
+                            JOptionPane.ERROR_MESSAGE);
+
+                    newPasswordFld.setText("");
+                    confirmPasswordFld.setText("");
+                    return;
+                }
+
                 if (!newPassword.equals(confirmPassword)) {
                     JOptionPane.showMessageDialog(this, "Passwords don't match", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                // Additional password strength checks could be added here
 
-                if (sqlite.resetPassword(currentUsername, newPassword)) {
+                if (sqlite.updateUserPassword(currentUsername, newPassword)) {
                     JOptionPane.showMessageDialog(this, "Password reset successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
                     frame.loginNav(); // Return to login screen
                 } else {

@@ -11,8 +11,10 @@ public class User {
     private int failedAttempts = 0;
     private LocalDateTime lockedUntil;
     private LocalDateTime lastUsed;
+    private String hashedAnswerFriend;
+    private String hashedAnswerCar;
 
-    public User(int id, String username, String password, int role, int failedAttempts, Timestamp lockedUntil, Timestamp lastUsed){
+    public User(int id, String username, String password, int role, int failedAttempts, Timestamp lockedUntil, Timestamp lastUsed, String hashedAnswerFriend, String hashedAnswerCar){
         this.id = id;
         this.username = username;
         this.password = password;
@@ -30,6 +32,9 @@ public class User {
         } else {
             this.lastUsed = lastUsed.toLocalDateTime();
         }
+
+        this.hashedAnswerCar = hashedAnswerCar;
+        this.hashedAnswerFriend = hashedAnswerFriend;
     }
     
     public User(int id, String username, String password, int role){

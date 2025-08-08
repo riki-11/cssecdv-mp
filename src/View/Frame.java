@@ -343,7 +343,7 @@ public class Frame extends javax.swing.JFrame {
         this.main = controller;
         loginPnl.frame = this;
         registerPnl.frame = this;
-        this.passwordResetPnl = new PasswordChange(main.sqlite);
+        this.passwordResetPnl = new PasswordChange(main.sqlite, this);
 
 //        adminHomePnl.init(main.sqlite);
 //        clientHomePnl.init(main.sqlite);
@@ -393,10 +393,6 @@ public class Frame extends javax.swing.JFrame {
 
     public void registerNav() {
         frameView.show(Container, "registerPnl");
-    }
-
-    public boolean registerAction(String username, String password, String confpass) {
-        return main.sqlite.addUser(username, password);
     }
 
     public void hideButtons(int role) {

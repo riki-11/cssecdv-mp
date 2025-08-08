@@ -55,11 +55,11 @@ public class Main {
         sqlite.addProduct("Scanner", 10, 100.0);
 
         // Add sample users
-        sqlite.addUser("admin", "qwerty1234" , 5);
-        sqlite.addUser("manager", "qwerty1234", 4);
-        sqlite.addUser("staff", "qwerty1234", 3);
-        sqlite.addUser("client1", "qwerty1234", 2);
-        sqlite.addUser("client2", "qwerty1234", 2);
+        sqlite.addUser("admin", "qwerty1234" , 5, "adam", "civic");
+        sqlite.addUser("manager", "qwerty1234", 4, "adam", "civic");
+        sqlite.addUser("staff", "qwerty1234", 3, "adam", "civic");
+        sqlite.addUser("client1", "qwerty1234", 2, "adam", "civic");
+        sqlite.addUser("client2", "qwerty1234", 2, "adam", "civic");
 
 
         // Get users
@@ -91,6 +91,7 @@ public class Main {
             System.out.println(" Price: " + products.get(nCtr).getPrice());
         }
         // Get users
+        //TODO: update to match the user table
         ArrayList<User> users = sqlite.getUsers();
         for(int nCtr = 0; nCtr < users.size(); nCtr++){
             System.out.println("===== User " + users.get(nCtr).getId() + " =====");
