@@ -32,12 +32,14 @@ public class Main {
         sqlite.dropLogsTable();
         sqlite.dropProductTable();
         sqlite.dropUserTable();
+        sqlite.dropPasswordTable();
 
         // Create users table if not exist
         sqlite.createHistoryTable();
         sqlite.createLogsTable();
         sqlite.createProductTable();
         sqlite.createUserTable();
+        sqlite.createPasswordTable();
 
         // Add sample history
         sqlite.addHistory("admin", "Antivirus", 1, 500.0,"2019-04-03 14:30:00.000");

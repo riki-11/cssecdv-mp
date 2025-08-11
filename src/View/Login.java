@@ -129,7 +129,7 @@ public class Login extends javax.swing.JPanel {
 //            frame.setCurrentUser(username);
 
             frame.hideButtons(role);
-            frame.mainNav(role, username);
+            frame.mainNav(role, username, result.lastUsed);
         } else if(result.invalidInput) {
             JOptionPane.showMessageDialog(this, "Ensure proper input (No empty fields, too many characters, or suspicious sql input)", "Login Failed", JOptionPane.ERROR_MESSAGE);
         }

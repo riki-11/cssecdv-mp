@@ -4,14 +4,14 @@ import Controller.Main;
 import Model.User;
 import Service.PasswordStrengthChecker;
 import dto.PasswordCheckResult;
+import dto.PasswordUpdateResult;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
-import javax.swing.WindowConstants;
-import javax.swing.JOptionPane;
-import javax.swing.JTextField;
-import javax.swing.JPasswordField;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import javax.swing.*;
 
 public class Frame extends javax.swing.JFrame {
 
@@ -291,7 +291,8 @@ public class Frame extends javax.swing.JFrame {
             }
 
             // Update password in database
-            boolean success = main.sqlite.updateUserPassword(currentUsername, newPassword);
+            PasswordUpdateResult passwordUpdateResult = main.sqlite.updateUserPassword(currentUsername, newPassword);
+            boolean success = passwordUpdateResult.isSuccesful;
             if (success) {
                 // Log the password change
                 main.sqlite.addLogs("PASSWORD_CHANGE", currentUsername, "Password changed successfully",
@@ -366,7 +367,8 @@ public class Frame extends javax.swing.JFrame {
         this.setVisible(true);
     }
 
-    public void mainNav(int role, String username) {
+    public void mainNav(int role, String username, LocalDateTime lastUsed) {
+
         setCurrentUser(username, role);
 
         // Re-initialize the home panels with the username
@@ -377,6 +379,22 @@ public class Frame extends javax.swing.JFrame {
 
         frameView.show(Container, "homePnl");
         showPanel(role);
+
+        if (lastUsed != null) {
+            showLastActivityNotification(lastUsed);
+        }
+    }
+
+    private void showLastActivityNotification(LocalDateTime lastUsed) {
+        String formattedDate = lastUsed.format(DateTimeFormatter.ofPattern("MMM dd, yyyy hh:mm a"));
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Last account activity: " + formattedDate,
+                    "Security Notice",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
     }
 
     public void passwordResetNav() {

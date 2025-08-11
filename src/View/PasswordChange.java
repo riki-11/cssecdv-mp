@@ -4,6 +4,7 @@ import Controller.SQLite;
 import Model.User;
 import Service.PasswordStrengthChecker;
 import dto.PasswordCheckResult;
+import dto.PasswordUpdateResult;
 
 import javax.swing.*;
 import java.time.LocalDateTime;
@@ -256,11 +257,14 @@ public class PasswordChange extends javax.swing.JPanel {
                     return;
                 }
 
-
-                if (sqlite.updateUserPassword(currentUsername, newPassword)) {
+                PasswordUpdateResult result = sqlite.updateUserPassword(currentUsername, newPassword);
+                if (result.isSuccesful) {
                     JOptionPane.showMessageDialog(this, "Password reset successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
                     frame.loginNav(); // Return to login screen
-                } else {
+                } else if (result.isOldPassword) {
+                    JOptionPane.showMessageDialog(this, "Failed to reset password. This password has been used in the last 5 resets", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+                else {
                     JOptionPane.showMessageDialog(this, "Failed to reset password", "Error", JOptionPane.ERROR_MESSAGE);
                 }
                 newPasswordFld.setText("");
