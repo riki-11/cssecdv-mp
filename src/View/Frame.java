@@ -4,14 +4,14 @@ import Controller.Main;
 import Model.User;
 import Service.PasswordStrengthChecker;
 import dto.PasswordCheckResult;
+import dto.PasswordUpdateResult;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
-import javax.swing.WindowConstants;
-import javax.swing.JOptionPane;
-import javax.swing.JTextField;
-import javax.swing.JPasswordField;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import javax.swing.*;
 
 public class Frame extends javax.swing.JFrame {
 
@@ -291,7 +291,8 @@ public class Frame extends javax.swing.JFrame {
             }
 
             // Update password in database
-            boolean success = main.sqlite.updateUserPassword(currentUsername, newPassword);
+            PasswordUpdateResult passwordUpdateResult = main.sqlite.updateUserPassword(currentUsername, newPassword);
+            boolean success = passwordUpdateResult.isSuccesful;
             if (success) {
                 // Log the password change
                 main.sqlite.addLogs("PASSWORD_CHANGE", currentUsername, "Password changed successfully",
@@ -313,6 +314,7 @@ public class Frame extends javax.swing.JFrame {
     public Main main;
     public Login loginPnl = new Login();
     public Register registerPnl = new Register();
+    public PasswordChange passwordResetPnl;
 
     private AdminHome adminHomePnl = new AdminHome();
     private ManagerHome managerHomePnl = new ManagerHome();
@@ -342,6 +344,7 @@ public class Frame extends javax.swing.JFrame {
         this.main = controller;
         loginPnl.frame = this;
         registerPnl.frame = this;
+        this.passwordResetPnl = new PasswordChange(main.sqlite, this);
 
 //        adminHomePnl.init(main.sqlite);
 //        clientHomePnl.init(main.sqlite);
@@ -353,6 +356,7 @@ public class Frame extends javax.swing.JFrame {
         Container.add(registerPnl, "registerPnl");
         Container.add(HomePnl, "homePnl");
         frameView.show(Container, "loginPnl");
+        Container.add(passwordResetPnl, "passwordResetPnl");
 
         Content.setLayout(contentView);
         Content.add(adminHomePnl, "adminHomePnl");
@@ -363,7 +367,8 @@ public class Frame extends javax.swing.JFrame {
         this.setVisible(true);
     }
 
-    public void mainNav(int role, String username) {
+    public void mainNav(int role, String username, LocalDateTime lastUsed) {
+
         setCurrentUser(username, role);
 
         // Re-initialize the home panels with the username
@@ -374,6 +379,28 @@ public class Frame extends javax.swing.JFrame {
 
         frameView.show(Container, "homePnl");
         showPanel(role);
+
+        if (lastUsed != null) {
+            showLastActivityNotification(lastUsed);
+        }
+    }
+
+    private void showLastActivityNotification(LocalDateTime lastUsed) {
+        String formattedDate = lastUsed.format(DateTimeFormatter.ofPattern("MMM dd, yyyy hh:mm a"));
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Last account activity: " + formattedDate,
+                    "Security Notice",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+    }
+
+    public void passwordResetNav() {
+        passwordResetPnl.resetStep = 1; // Reset to first step
+        passwordResetPnl.updateFormState();
+        frameView.show(Container, "passwordResetPnl");
     }
 
     public void loginNav() {
@@ -384,10 +411,6 @@ public class Frame extends javax.swing.JFrame {
 
     public void registerNav() {
         frameView.show(Container, "registerPnl");
-    }
-
-    public boolean registerAction(String username, String password, String confpass) {
-        return main.sqlite.addUser(username, password);
     }
 
     public void hideButtons(int role) {

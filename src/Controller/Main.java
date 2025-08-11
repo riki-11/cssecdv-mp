@@ -32,12 +32,14 @@ public class Main {
         sqlite.dropLogsTable();
         sqlite.dropProductTable();
         sqlite.dropUserTable();
+        sqlite.dropPasswordTable();
 
         // Create users table if not exist
         sqlite.createHistoryTable();
         sqlite.createLogsTable();
         sqlite.createProductTable();
         sqlite.createUserTable();
+        sqlite.createPasswordTable();
 
         // Add sample history
         sqlite.addHistory("admin", "Antivirus", 1, 500.0,"2019-04-03 14:30:00.000");
@@ -55,11 +57,11 @@ public class Main {
         sqlite.addProduct("Scanner", 10, 100.0);
 
         // Add sample users
-        sqlite.addUser("admin", "qwerty1234" , 5);
-        sqlite.addUser("manager", "qwerty1234", 4);
-        sqlite.addUser("staff", "qwerty1234", 3);
-        sqlite.addUser("client1", "qwerty1234", 2);
-        sqlite.addUser("client2", "qwerty1234", 2);
+        sqlite.addUser("admin", "qwerty1234" , 5, "adam", "civic");
+        sqlite.addUser("manager", "qwerty1234", 4, "adam", "civic");
+        sqlite.addUser("staff", "qwerty1234", 3, "adam", "civic");
+        sqlite.addUser("client1", "qwerty1234", 2, "adam", "civic");
+        sqlite.addUser("client2", "qwerty1234", 2, "adam", "civic");
 
 
         // Get users
@@ -91,13 +93,19 @@ public class Main {
             System.out.println(" Price: " + products.get(nCtr).getPrice());
         }
         // Get users
+        //TODO: update to match the user table
         ArrayList<User> users = sqlite.getUsers();
         for(int nCtr = 0; nCtr < users.size(); nCtr++){
             System.out.println("===== User " + users.get(nCtr).getId() + " =====");
             System.out.println(" Username: " + users.get(nCtr).getUsername());
             System.out.println(" Password: " + users.get(nCtr).getPassword());
             System.out.println(" Role: " + users.get(nCtr).getRole());
-            System.out.println(" Locked: " + users.get(nCtr).getLocked());
+            System.out.println(" Failed Attempts: " + users.get(nCtr).getFailedAttempts());
+            System.out.println(" Locked Until: " + users.get(nCtr).getLockedUntil());
+            System.out.println(" Last Used: " + users.get(nCtr).getLastUsed());
+            System.out.println(" Hashed Friend: " + users.get(nCtr).getHashedAnswerFriend());
+            System.out.println(" Hashed Car: " + users.get(nCtr).getHashedAnswerFriend());
+            System.out.println(" Last Password Update: " + users.get(nCtr).getLastPasswordUpdate());
         }
         
         // Initialize User Interface

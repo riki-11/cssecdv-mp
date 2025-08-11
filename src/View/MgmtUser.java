@@ -48,13 +48,20 @@ public class MgmtUser extends javax.swing.JPanel {
         }
         
 //      LOAD CONTENTS
+        //TODO: update to match the table info
         ArrayList<User> users = sqlite.getUsers();
         for(int nCtr = 0; nCtr < users.size(); nCtr++){
             tableModel.addRow(new Object[]{
                 users.get(nCtr).getUsername(), 
                 users.get(nCtr).getPassword(), 
                 users.get(nCtr).getRole(), 
-                users.get(nCtr).getLocked()});
+                users.get(nCtr).getFailedAttempts(),
+                users.get(nCtr).getLockedUntil(),
+                users.get(nCtr).getLastUsed(),
+                users.get(nCtr).getHashedAnswerFriend(),
+                users.get(nCtr).getHashedAnswerCar(),
+                users.get(nCtr).getLastPasswordUpdate()
+            });
         }
     }
 

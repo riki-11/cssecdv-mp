@@ -6,6 +6,7 @@ import Model.Product;
 import Model.User;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -18,6 +19,8 @@ import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 
 import Constants.LogEventTypes;
+import dto.AuthenticationCheckResult;
+import dto.PasswordUpdateResult;
 
 public class SQLite {
     
@@ -85,29 +88,130 @@ public class SQLite {
         }
     }
 
-    public boolean updateUserPassword(String username, String newPassword) {
+    public LocalDateTime incrementUserFailedAttempts(String username, Connection conn) {
+        String updateSql = "UPDATE users set failedAttempts = failedAttempts + 1 WHERE username = ?";
+        String selectSql = "SELECT failedAttempts from users WHERE username = ?";
+        String lockSql = "UPDATE users set lockedUntil = ?, failedAttempts = 0 WHERE username = ?";
+
+        try {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("PRAGMA busy_timeout = WAL");
+            }
+
+            try(PreparedStatement update = conn.prepareStatement(updateSql)) {
+                update.setString(1, username);
+                update.executeUpdate();
+            }
+
+            int failedAttempts = 0;
+
+            try(PreparedStatement select = conn.prepareStatement(selectSql)){
+                select.setString(1, username);
+                try(ResultSet rs = select.executeQuery()) {
+                    if (rs.next()) {
+                        failedAttempts = rs.getInt("failedAttempts");
+                    }
+                }
+            }
+
+            if(failedAttempts >= 5) {
+                LocalDateTime lockUntil = LocalDateTime.now().plusMinutes(15);
+                try (PreparedStatement lockStmt = conn.prepareStatement(lockSql)) {
+                    lockStmt.setTimestamp(1, Timestamp.valueOf(lockUntil));
+                    lockStmt.setString(2, username);
+                    lockStmt.executeUpdate();
+                }
+                return lockUntil;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public void resetUserFailedAttemptsAndLockout(String username, Connection conn) {
+        String sql = "UPDATE users set failedAttempts = 0, lockedUntil = NULL WHERE username = ?";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, username);
+                pstmt.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public PasswordUpdateResult updateUserPassword(String username, String newPassword) {
         String hashedPassword = hashPassword(newPassword);
-        String sql = "UPDATE users SET password = ? WHERE username = ?";
+        String sql = "UPDATE users SET password = ?, lastPasswordUpdate = ? WHERE username = ?";
+
+        LocalDateTime lastUpdated = LocalDateTime.now();
+        Timestamp cooldownTimestamp = Timestamp.valueOf(lastUpdated);
+
+        if (isPreviousPassword(username, newPassword)) {
+            System.err.println("Password matches a previously used password");
+            return new PasswordUpdateResult(false, true);
+        }
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, hashedPassword);
-            pstmt.setString(2, username);
+            pstmt.setTimestamp(2, cooldownTimestamp);
+            pstmt.setString(3, username);
 
             int affectedRows = pstmt.executeUpdate();
 
             if (affectedRows > 0) {
                 System.out.println("Password updated successfully for user: " + username);
-                return true;
+
+                String historySql = "INSERT INTO password_history (user_id, password_hash, changed_at) "
+                        + "SELECT id, ?, ? FROM users WHERE username = ?";
+
+                Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+
+                try (PreparedStatement historyStmt = conn.prepareStatement(historySql)) {
+                    historyStmt.setString(1, hashedPassword);
+                    historyStmt.setTimestamp(2, now);
+                    historyStmt.setString(3, username);
+                    historyStmt.executeUpdate();
+                }
+
+
+                return new PasswordUpdateResult(true, false);
             } else {
                 System.out.println("No user found with username: " + username);
-                return false;
+                return new PasswordUpdateResult(false, false);
             }
 
         } catch (Exception ex) {
             System.err.println("Error updating password: " + ex.getMessage());
+            return new PasswordUpdateResult(false, false);
+        }
+    }
+
+    private boolean isPreviousPassword(String username, String newPassword)  {
+        String sql = "SELECT ph.password_hash FROM password_history ph "
+                + "JOIN users u ON ph.user_id = u.id "
+                + "WHERE u.username = ? "
+                + "ORDER BY ph.changed_at DESC "
+                + "LIMIT 5";  // Check against last 5 passwords
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                if (verifyPassword(newPassword, rs.getString("password_hash"))) {
+                    return true;
+                }
+            }
             return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return true; //fail secure and assume password exists
         }
     }
 
@@ -192,6 +296,34 @@ public class SQLite {
             System.out.print(ex);
         }
     }
+
+    public void createPasswordTable() {
+        String createPasswordHistoryTable = "CREATE TABLE IF NOT EXISTS password_history (\n"
+                + " id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+                + " user_id INTEGER NOT NULL,\n"
+                + " password_hash TEXT NOT NULL,\n"
+                + " changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n"
+                + " FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,\n"
+                + " CONSTRAINT unique_user_password UNIQUE (user_id, password_hash)\n"
+                + ");";
+
+        String createIndex = "CREATE INDEX IF NOT EXISTS idx_password_history_user "
+                + "ON password_history(user_id);";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             Statement stmt = conn.createStatement()) {
+
+            // Execute all table creation statements
+            stmt.execute(createPasswordHistoryTable);
+            stmt.execute(createIndex);
+
+            System.out.println("Tables password_history created successfully.");
+
+        } catch (Exception ex) {
+            System.err.println("Error creating tables: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
      
     public void createUserTable() {
         String sql = "CREATE TABLE IF NOT EXISTS users (\n"
@@ -199,7 +331,12 @@ public class SQLite {
             + " username TEXT NOT NULL UNIQUE,\n"
             + " password TEXT NOT NULL,\n"
             + " role INTEGER DEFAULT 2,\n"
-            + " locked INTEGER DEFAULT 0\n"
+            + " failedAttempts INTEGER DEFAULT 0,\n"
+            + " lockedUntil DATETIME DEFAULT NULL,\n"
+            + " lastUsed DATETIME DEFAULT NULL,\n"
+            + " hashedAnswerFriend TEXT NOT NULL,\n"
+            + " hashedAnswerCar TEXT NOT NULL,\n"
+            + " lastPasswordUpdate DATETIME DEFAULT NULL"
             + ");";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -218,6 +355,18 @@ public class SQLite {
             Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
             System.out.println("Table history in database.db dropped.");
+        } catch (Exception ex) {
+            System.out.print(ex);
+        }
+    }
+
+    public void dropPasswordTable() {
+        String sql = "DROP TABLE IF EXISTS password_history;";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+            System.out.println("Table password_history in database.db dropped.");
         } catch (Exception ex) {
             System.out.print(ex);
         }
@@ -358,19 +507,34 @@ public class SQLite {
         }
     }
 
-    // Improved addUser method with PreparedStatement (more secure)
-    public boolean addUser(String username, String password) {
+    public boolean addUser(String username, String password, String friend, String car) {
         String hashedPassword = hashPassword(password);
-        String sql = "INSERT INTO users(username,password) VALUES(?,?)";
+        String hashedFriend = hashPassword(friend);
+        String hashedCar = hashPassword(car);
+        String sql = "INSERT INTO users(username,password,hashedAnswerFriend,hashedAnswerCar) VALUES(?,?,?,?)";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
             pstmt.setString(2, hashedPassword);
+            pstmt.setString(3, hashedFriend);
+            pstmt.setString(4, hashedCar);
             pstmt.executeUpdate();
 
             System.out.println("User '" + username + "' added successfully.");
+            ResultSet rs = pstmt.getGeneratedKeys();
+            int userId = rs.getInt(1);
+
+            String historySql = "INSERT INTO password_history(user_id, password_hash) VALUES(?, ?)";
+            try (PreparedStatement historyStmt = conn.prepareStatement(historySql)) {
+                historyStmt.setInt(1, userId);
+                historyStmt.setString(2, hashedPassword);
+                historyStmt.executeUpdate();
+            }
+
+            System.out.println("User '" + username + "' added successfully with password history.");
+
             return true;
 
         } catch (Exception ex) {
@@ -530,8 +694,9 @@ public class SQLite {
         }
     }
 
+    //TODO : update to match user fields
     public ArrayList<User> getUsers(){
-        String sql = "SELECT id, username, password, role, locked FROM users";
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar, lastPasswordUpdate FROM users";
         ArrayList<User> users = new ArrayList<User>();
         
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -543,19 +708,47 @@ public class SQLite {
                                    rs.getString("username"),
                                    rs.getString("password"),
                                    rs.getInt("role"),
-                                   rs.getInt("locked")));
+                                   rs.getInt("failedAttempts"),
+                                   rs.getTimestamp("lockedUntil"),
+                                   rs.getTimestamp("lastUsed"),
+                                   rs.getString("hashedAnswerCar"),
+                                   rs.getString("hashedAnswerFriend"),
+                                   rs.getTimestamp("lastPasswordUpdate")));
             }
         } catch (Exception ex) {}
         return users;
     }
     
-    public void addUser(String username, String password, int role) {
+    public void addUser(String username, String password, int role, String friend, String car) {
         String hashedPassword = hashPassword(password);
-        String sql = "INSERT INTO users(username,password,role) VALUES('" + username + "','" + hashedPassword + "','" + role + "')";
-        
+        String hashedFriend = hashPassword(friend);
+        String hashedCar = hashPassword(car);
+        String sql = "INSERT INTO users(username,password,role,hashedAnswerFriend,hashedAnswerCar) VALUES(?,?,?,?,?)";
+
         try (Connection conn = DriverManager.getConnection(driverURL);
-            Statement stmt = conn.createStatement()){
-            stmt.execute(sql);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, username);
+            pstmt.setString(2, hashedPassword);
+            pstmt.setInt(3, role);
+            pstmt.setString(4, hashedFriend);
+            pstmt.setString(5, hashedCar);
+            pstmt.executeUpdate();
+
+            System.out.println("User '" + username + "' added successfully.");
+            ResultSet rs = pstmt.getGeneratedKeys();
+            int userId = rs.getInt(1);
+
+            String historySql = "INSERT INTO password_history(user_id, password_hash) VALUES(?, ?)";
+            try (PreparedStatement historyStmt = conn.prepareStatement(historySql)) {
+                historyStmt.setInt(1, userId);
+                historyStmt.setString(2, hashedPassword);
+                historyStmt.executeUpdate();
+            }
+
+            System.out.println("User '" + username + "' added successfully with password history.");
+
+
             
         } catch (Exception ex) {
             System.out.print(ex);
@@ -574,8 +767,9 @@ public class SQLite {
         }
     }
 
+    //TODO ensure follows fields of user
     public User getUserByUsername(String username) {
-        String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar, lastPasswordUpdate FROM users WHERE username = ?";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -589,7 +783,12 @@ public class SQLite {
                         rs.getString("username"),
                         rs.getString("password"),
                         rs.getInt("role"),
-                        rs.getInt("locked"));
+                        rs.getInt("failedAttempts"),
+                        rs.getTimestamp("lockedUntil"),
+                        rs.getTimestamp("lastUsed"),
+                        rs.getString("hashedAnswerFriend"),
+                        rs.getString("hashedAnswerCar"),
+                        rs.getTimestamp("lastPasswordUpdate"));
             }
         } catch (Exception ex) {
             System.out.println(ex);
@@ -640,8 +839,9 @@ public class SQLite {
     }
 
     // Enhanced authentication method with logging
-    public User authenticateUser(String username, String password) {
-        String sql = "SELECT id, username, password, role, locked FROM users WHERE username = ?";
+    public AuthenticationCheckResult authenticateUser(String username, String password) {
+        //TODO: ensure follows fields of user
+        String sql = "SELECT id, username, password, role, failedAttempts, lockedUntil, lastUsed, hashedAnswerFriend, hashedAnswerCar, lastPasswordUpdate FROM users WHERE username = ?";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -652,22 +852,22 @@ public class SQLite {
             // Input validation
             if (username == null || username.trim().isEmpty()) {
                 addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, "UNKNOWN", "Username is empty", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true, null);
             }
 
             if (password == null || password.isEmpty()) {
                 addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, "Password is empty", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true, null);
             }
 
             if (username.length() > 50) {
                 addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, "Username too long", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true, null);
             }
 
             if (password.length() > 200) {
                 addSecurityLog(LogEventTypes.INPUT_VALIDATION_FAILURE, username, "Password too long", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true,null);
             }
 
             // Basic SQL injection pattern check
@@ -675,7 +875,7 @@ public class SQLite {
             for (String pattern : sqlPatterns) {
                 if (username.toUpperCase().contains(pattern.toUpperCase())) {
                     addSecurityLog(LogEventTypes.SECURITY_VIOLATION, username, "Suspicious input: " + pattern, conn);
-                    return null;
+                    return new AuthenticationCheckResult(null, false, null, true, null);
                 }
             }
 
@@ -683,9 +883,19 @@ public class SQLite {
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
-                if (rs.getInt("locked") == 1) {
+                Timestamp lastUsed = rs.getTimestamp("lastUsed");
+
+                try (PreparedStatement updateStmt = conn.prepareStatement(
+                        "UPDATE users SET lastUsed = ? WHERE username = ?")) {
+                    updateStmt.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+                    updateStmt.setString(2, username);
+                    updateStmt.executeUpdate();
+                }
+
+                if (rs.getTimestamp("lockedUntil") != null && rs.getTimestamp("lockedUntil").toLocalDateTime().isAfter(LocalDateTime.now())) {
                     addSecurityLog(LogEventTypes.AUTH_ACCOUNT_LOCKED, username, "Account is locked", conn);
-                    return null;
+                    return new AuthenticationCheckResult(null, true, rs.getTimestamp("lockedUntil").toLocalDateTime(), false, null);
+
                 }
 
                 String storedHashedPassword = rs.getString("password");
@@ -696,18 +906,32 @@ public class SQLite {
                             rs.getString("username"),
                             storedHashedPassword,
                             rs.getInt("role"),
-                            rs.getInt("locked")
+                            rs.getInt("failedAttempts"),
+                            rs.getTimestamp("lockedUntil"),
+                            lastUsed,
+                            rs.getString("hashedAnswerFriend"),
+                            rs.getString("hashedAnswerCar"),
+                            rs.getTimestamp("lastPasswordUpdate")
                     );
 
                     addSecurityLog(LogEventTypes.AUTH_SUCCESS, username, "Login success - Role: " + user.getRole(), conn);
-                    return user;
+                    resetUserFailedAttemptsAndLockout(username, conn);
+                    LocalDateTime temp = null;
+                    if (lastUsed != null) {
+                        temp = lastUsed.toLocalDateTime();
+                    }
+                    return new AuthenticationCheckResult(user, false, null, false, temp);
                 } else {
                     addSecurityLog(LogEventTypes.AUTH_FAILURE, username, "Invalid password", conn);
-                    return null;
+                    LocalDateTime locked = incrementUserFailedAttempts(username, conn);
+
+                    boolean flag = locked != null;
+
+                    return new AuthenticationCheckResult(null, flag, locked, false, null);
                 }
             } else {
                 addSecurityLog(LogEventTypes.AUTH_FAILURE, username, "Username not found", conn);
-                return null;
+                return new AuthenticationCheckResult(null, false, null, true, null);
             }
 
         } catch (Exception ex) {
@@ -807,8 +1031,8 @@ public class SQLite {
     }
 
     // Method to complete registration after password strength validation
-    public boolean completeUserRegistration(String username, String password) {
-        boolean result = addUser(username, password);
+    public boolean completeUserRegistration(String username, String password, String securityAnswerFriend, String securityAnswerCar) {
+        boolean result = addUser(username, password, securityAnswerFriend, securityAnswerCar);
         if (result) {
             addSecurityLog(LogEventTypes.AUTH_SUCCESS, username,
                     "User registration completed successfully");
@@ -817,5 +1041,42 @@ public class SQLite {
                     "User registration failed - Database error");
         }
         return result;
+    }
+
+    //TODO idk if u wanna add extra security logs pa
+    public boolean verifySecurityAnswers(String username, String answerFriend, String answerCar) {
+        String sql = "SELECT hashedAnswerFriend, hashedAnswerCar FROM users WHERE username = ?";
+        ResultSet resultSet = null;
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            // Log authentication attempt
+            addSecurityLog(LogEventTypes.AUTH_SUCCESS, username, "Authentication attempt initiated", conn);
+
+
+            // Basic SQL injection pattern check
+            String[] sqlPatterns = {"'", "\"", ";", "--", "/*", "*/", "xp_", "sp_", "DROP", "SELECT", "INSERT", "UPDATE", "DELETE"};
+            for (String pattern : sqlPatterns) {
+                if (answerFriend.toUpperCase().contains(pattern.toUpperCase()) || answerCar.toUpperCase().contains(pattern.toUpperCase())) {
+                    addSecurityLog(LogEventTypes.SECURITY_VIOLATION, username, "Suspicious input: " + pattern, conn);
+                    return false;
+                }
+            }
+
+            pstmt.setString(1, username);
+            resultSet = pstmt.executeQuery();
+
+            if(resultSet.next()) {
+                String storedFriend = resultSet.getString("hashedAnswerFriend");
+                String storedCar = resultSet.getString("hashedAnswerCar");
+
+                return verifyPassword(answerFriend, storedFriend) && verifyPassword(answerCar, storedCar);
+            }
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }

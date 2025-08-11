@@ -9,8 +9,8 @@ public class PasswordStrengthChecker {
             return new PasswordCheckResult(false, "Password cannot be empty.");
         }
 
-        if (password.length() < 8) {
-            return new PasswordCheckResult(false, "Password must be at least 8 characters long.");
+        if (password.length() < 12) {
+            return new PasswordCheckResult(false, "Password must be at least 12 characters long.");
         }
 
         boolean hasUpper = false;
