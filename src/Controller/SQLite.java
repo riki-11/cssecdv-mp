@@ -991,7 +991,7 @@ public class SQLite {
     }
 
     // Enhanced user registration with input validation logging
-    public boolean registerUserWithValidation(String username, String password, String confirmPassword) {
+    public boolean registerUserWithValidation(String username, String password, String confirmPassword, String securityAnswerFriend, String securityAnswerCar) {
         String currentUser = "REGISTRATION_SYSTEM";
 
         if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
@@ -1012,6 +1012,18 @@ public class SQLite {
         if (!validateUserInput("confirmPassword", confirmPassword, username, 200, false)) {
             return false;
         }
+
+        // Validate confirm password
+        if (!validateUserInput("securityAnswerFriend", securityAnswerFriend, username, 200, false)) {
+            return false;
+        }
+
+        // Validate confirm password
+        if (!validateUserInput("securityAnswerCar", securityAnswerCar, username, 200, false)) {
+            return false;
+        }
+
+
 
         if (!password.equals(confirmPassword)) {
             String msg = "Registration failed - Password and confirm password do not match";

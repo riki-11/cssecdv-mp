@@ -170,7 +170,7 @@ public class Register extends javax.swing.JPanel {
         }
 
         // Step 1: Basic input validation with logging
-        boolean basicValidationResult = sqLite.registerUserWithValidation(username, password, confirmPassword);
+        boolean basicValidationResult = sqLite.registerUserWithValidation(username, password, confirmPassword, securityAnswerFriend, securityAnswerCar);
 
         if (!basicValidationResult) {
             String msg = sqLite.getLastValidationMessage();
