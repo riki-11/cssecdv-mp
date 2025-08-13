@@ -131,7 +131,7 @@ public class Login extends javax.swing.JPanel {
             frame.hideButtons(role);
             frame.mainNav(role, username, result.lastUsed);
         } else if(result.invalidInput) {
-            JOptionPane.showMessageDialog(this, "Ensure proper input (No empty fields, too many characters, or suspicious sql input)", "Login Failed", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Invalid input (Ensure account exists, no empty fields, too many characters, or suspicious sql input)", "Login Failed", JOptionPane.ERROR_MESSAGE);
         }
         else if(result.isLocked) {
             JOptionPane.showMessageDialog(this, "Too many failed login attempts. Account is locked until " + result.time, "Login Failed", JOptionPane.ERROR_MESSAGE);

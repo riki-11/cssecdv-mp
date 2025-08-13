@@ -52,15 +52,10 @@ public class MgmtUser extends javax.swing.JPanel {
         ArrayList<User> users = sqlite.getUsers();
         for(int nCtr = 0; nCtr < users.size(); nCtr++){
             tableModel.addRow(new Object[]{
-                users.get(nCtr).getUsername(),
-                users.get(nCtr).getPassword(),
-                users.get(nCtr).getRole(),
-                users.get(nCtr).getFailedAttempts(),
-                users.get(nCtr).getLockedUntil(),
-                users.get(nCtr).getLastUsed(),
-                users.get(nCtr).getHashedAnswerFriend(),
-                users.get(nCtr).getHashedAnswerCar(),
-                users.get(nCtr).getLastPasswordUpdate()
+                    users.get(nCtr).getUsername(),
+                    "********", // Mask password for security (better than showing hashes)
+                    users.get(nCtr).getRole(),
+                    users.get(nCtr).getLastUsed()
             });
         }
     }
@@ -140,7 +135,7 @@ public class MgmtUser extends javax.swing.JPanel {
                 {null, null, null, null}
             },
             new String [] {
-                "Username", "Password", "Role", "Locked"
+                "Username", "Password", "Role", "Last Used"
             }
         ) {
             boolean[] canEdit = new boolean [] {
@@ -156,9 +151,9 @@ public class MgmtUser extends javax.swing.JPanel {
         jScrollPane1.setViewportView(table);
         if (table.getColumnModel().getColumnCount() > 0) {
             table.getColumnModel().getColumn(0).setPreferredWidth(160);
-            table.getColumnModel().getColumn(1).setPreferredWidth(400);
+            table.getColumnModel().getColumn(1).setPreferredWidth(160);
             table.getColumnModel().getColumn(2).setPreferredWidth(100);
-            table.getColumnModel().getColumn(3).setPreferredWidth(100);
+            table.getColumnModel().getColumn(3).setPreferredWidth(300);
         }
 
         editRoleBtn.setBackground(new java.awt.Color(255, 255, 255));
@@ -230,59 +225,74 @@ public class MgmtUser extends javax.swing.JPanel {
         );
     }// </editor-fold>//GEN-END:initComponents
 
-    private void editRoleBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editRoleBtnActionPerformed
+    private void editRoleBtnActionPerformed(java.awt.event.ActionEvent evt) {
         if (table.getSelectedRow() < 0) {
             logValidationFailure("Attempted edit user without selecting user");
             JOptionPane.showMessageDialog(null, "No user selected!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if(table.getSelectedRow() >= 0){
-            String[] options = {"1-DISABLED","2-CLIENT","3-STAFF","4-MANAGER","5-ADMIN"};
-            JComboBox optionList = new JComboBox(options);
+        if(table.getSelectedRow() >= 0) {
+            String[] options = {"2-CLIENT","3-STAFF","4-MANAGER","5-ADMIN"};
+            String username = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
+            int currentRole = (int)tableModel.getValueAt(table.getSelectedRow(), 2);
 
-            optionList.setSelectedIndex((int)tableModel.getValueAt(table.getSelectedRow(), 2) - 1);
+            String result = (String) JOptionPane.showInputDialog(null, "USER: " + username,
+                    "EDIT USER ROLE", JOptionPane.QUESTION_MESSAGE, null,
+                    options, options[currentRole - 2]); // Subtract 2 since roles start from 2
 
-            String result = (String) JOptionPane.showInputDialog(null, "USER: " + tableModel.getValueAt(table.getSelectedRow(), 0),
-                "EDIT USER ROLE", JOptionPane.QUESTION_MESSAGE, null, options, options[(int)tableModel.getValueAt(table.getSelectedRow(), 2) - 1]);
-
-            if(result != null){
-                String username = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
-
+            if(result != null) {
                 try {
                     int selectedRole = Integer.parseInt(String.valueOf(result.charAt(0)));
-                    if (selectedRole < 1 || selectedRole > 5) {
+                    if (selectedRole < 2 || selectedRole > 5) {
                         logValidationFailure("Invalid role selected (" + selectedRole + ") for user: " + username);
                         JOptionPane.showMessageDialog(null, "Invalid role selected!", "Error", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
 
-                    System.out.println(username);
-                    System.out.println(selectedRole);
+                    SQLite db = new SQLite();
+                    if (db.updateUserRole(username, selectedRole)) {
+                        JOptionPane.showMessageDialog(null, "User role updated successfully!");
+                        refreshUserTable();
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Failed to update user role!", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
                 } catch (Exception e) {
-                    logValidationFailure("Non-numeric role value selected for user: " + username);
-                    JOptionPane.showMessageDialog(null, "Invalid role format!", "Error", JOptionPane.ERROR_MESSAGE);
+                    logValidationFailure("Error updating role for user: " + username);
+                    JOptionPane.showMessageDialog(null, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
-
         }
-    }//GEN-LAST:event_editRoleBtnActionPerformed
+    }
 
-    private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteBtnActionPerformed
+    private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {
         if (table.getSelectedRow() < 0) {
             logValidationFailure("Attempted delete without selecting user");
             JOptionPane.showMessageDialog(null, "No user selected!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if(table.getSelectedRow() >= 0){
-            int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete " + tableModel.getValueAt(table.getSelectedRow(), 0) + "?", "DELETE USER", JOptionPane.YES_NO_OPTION);
+        if(table.getSelectedRow() >= 0) {
+            String username = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
+            int result = JOptionPane.showConfirmDialog(null,
+                    "Are you sure you want to delete " + username + "?",
+                    "DELETE USER", JOptionPane.YES_NO_OPTION);
 
             if (result == JOptionPane.YES_OPTION) {
-                System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
+                try {
+                    SQLite db = new SQLite();
+                    if (db.deleteUserWithDependencies(username)) {
+                        JOptionPane.showMessageDialog(null, "User deleted successfully!");
+                        refreshUserTable();
+                    } else {
+                        JOptionPane.showMessageDialog(null, "User not found or could not be deleted!", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(null, "Error deleting user: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
         }
-    }//GEN-LAST:event_deleteBtnActionPerformed
+    }
 
     private void lockBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_lockBtnActionPerformed
         if (table.getSelectedRow() < 0) {
@@ -369,6 +379,30 @@ public class MgmtUser extends javax.swing.JPanel {
                             " (User role: " + userRole + ", Required: " + requiredRole + ")");
             return false;
         }
+    }
+
+    private void refreshUserTable() {
+        // Clear the current table data
+        tableModel.setRowCount(0);
+
+        // Get updated user data from database
+        ArrayList<User> users = sqlite.getUsers();
+
+        // Populate the table with fresh data - matching your existing init() format
+        for(User user : users) {
+            tableModel.addRow(new Object[]{
+                    user.getUsername(),
+                    "********", // Mask password for security (better than showing hashes)
+                    user.getRole(),
+                    user.getLastUsed()
+            });
+        }
+
+        // Maintain your existing column widths
+        table.getColumnModel().getColumn(0).setPreferredWidth(160);
+        table.getColumnModel().getColumn(1).setPreferredWidth(160);
+        table.getColumnModel().getColumn(2).setPreferredWidth(100);
+        table.getColumnModel().getColumn(3).setPreferredWidth(300);
     }
 
 

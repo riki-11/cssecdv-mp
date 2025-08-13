@@ -1091,4 +1091,55 @@ public class SQLite {
             return false;
         }
     }
+
+    public boolean deleteUserWithDependencies(String username) {
+        try (Connection conn = DriverManager.getConnection(driverURL)) {
+            // First delete password history (due to foreign key constraint)
+            String deleteHistorySql = "DELETE FROM password_history WHERE user_id = (SELECT id FROM users WHERE username = ?)";
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteHistorySql)) {
+                pstmt.setString(1, username);
+                pstmt.executeUpdate();
+            }
+
+            // Then delete the user
+            String deleteUserSql = "DELETE FROM users WHERE username = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteUserSql)) {
+                pstmt.setString(1, username);
+                int rowsAffected = pstmt.executeUpdate();
+
+                if (rowsAffected > 0) {
+                    addSecurityLog(LogEventTypes.USER_DELETED, username, "User account deleted", conn);
+                    return true;
+                }
+                return false;
+            }
+        } catch (SQLException ex) {
+            addSecurityLog(LogEventTypes.DATABASE_ERROR, username,
+                    "Failed to delete user: " + ex.getMessage());
+            throw new RuntimeException("Failed to delete user", ex);
+        }
+    }
+
+    public boolean updateUserRole(String username, int newRole) {
+        String sql = "UPDATE users SET role = ? WHERE username = ?";
+
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, newRole);
+            pstmt.setString(2, username);
+            int rowsAffected = pstmt.executeUpdate();
+
+            if (rowsAffected > 0) {
+                addSecurityLog(LogEventTypes.USER_ROLE_CHANGED, username,
+                        "Role changed to " + newRole, conn);
+                return true;
+            }
+            return false;
+        } catch (SQLException ex) {
+            addSecurityLog(LogEventTypes.DATABASE_ERROR, username,
+                    "Failed to update role: " + ex.getMessage());
+            throw new RuntimeException("Failed to update user role", ex);
+        }
+    }
 }

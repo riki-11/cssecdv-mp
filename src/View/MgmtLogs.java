@@ -60,6 +60,9 @@ public class MgmtLogs extends javax.swing.JPanel {
         clearBtn = new javax.swing.JButton();
         debugBtn = new javax.swing.JButton();
 
+        clearBtn.setVisible(false);
+        debugBtn.setVisible(false);
+
         table.setFont(new java.awt.Font("SansSerif", 0, 14)); // NOI18N
         table.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
