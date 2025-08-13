@@ -46,15 +46,15 @@ public class MgmtUser extends javax.swing.JPanel {
         for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
             tableModel.removeRow(0);
         }
-        
+
 //      LOAD CONTENTS
         //TODO: update to match the table info
         ArrayList<User> users = sqlite.getUsers();
         for(int nCtr = 0; nCtr < users.size(); nCtr++){
             tableModel.addRow(new Object[]{
-                users.get(nCtr).getUsername(), 
-                users.get(nCtr).getPassword(), 
-                users.get(nCtr).getRole(), 
+                users.get(nCtr).getUsername(),
+                users.get(nCtr).getPassword(),
+                users.get(nCtr).getRole(),
                 users.get(nCtr).getFailedAttempts(),
                 users.get(nCtr).getLockedUntil(),
                 users.get(nCtr).getLastUsed(),
@@ -93,15 +93,15 @@ public class MgmtUser extends javax.swing.JPanel {
             case 5: // Admin - full user management
                 editRoleBtn.setVisible(true);
                 deleteBtn.setVisible(true);
-                lockBtn.setVisible(true);
-                chgpassBtn.setVisible(true);
+                lockBtn.setVisible(false);
+                chgpassBtn.setVisible(false);
                 break;
 
             case 4: // Manager - limited user management (no role editing)
                 editRoleBtn.setVisible(false);
-                deleteBtn.setVisible(true);
-                lockBtn.setVisible(true);
-                chgpassBtn.setVisible(true);
+                deleteBtn.setVisible(false);
+                lockBtn.setVisible(false);
+                chgpassBtn.setVisible(false);
                 break;
 
             case 3: // Staff - no user management
@@ -277,7 +277,7 @@ public class MgmtUser extends javax.swing.JPanel {
 
         if(table.getSelectedRow() >= 0){
             int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete " + tableModel.getValueAt(table.getSelectedRow(), 0) + "?", "DELETE USER", JOptionPane.YES_NO_OPTION);
-            
+
             if (result == JOptionPane.YES_OPTION) {
                 System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
             }
@@ -296,9 +296,9 @@ public class MgmtUser extends javax.swing.JPanel {
             if("1".equals(tableModel.getValueAt(table.getSelectedRow(), 3) + "")){
                 state = "unlock";
             }
-            
+
             int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to " + state + " " + tableModel.getValueAt(table.getSelectedRow(), 0) + "?", "DELETE USER", JOptionPane.YES_NO_OPTION);
-            
+
             if (result == JOptionPane.YES_OPTION) {
                 System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
             }
@@ -317,7 +317,7 @@ public class MgmtUser extends javax.swing.JPanel {
             JTextField confpass = new JPasswordField();
             designer(password, "PASSWORD");
             designer(confpass, "CONFIRM PASSWORD");
-            
+
             Object[] message = {
                 "Enter New Password:", password, confpass
             };
