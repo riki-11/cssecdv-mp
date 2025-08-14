@@ -475,6 +475,7 @@ public class MgmtProduct extends javax.swing.JPanel {
 
                     // Update product in database
                     sqlite.updateProduct(currentName, newName, stock, price);
+                    logSecurityEvent("Product '" + currentName + "' edited successfully.");
 
                     // Refresh the table
                     init();
