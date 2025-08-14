@@ -363,141 +363,189 @@ public class MgmtProduct extends javax.swing.JPanel {
         int result = JOptionPane.showConfirmDialog(null, message, "ADD PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
 
         if (result == JOptionPane.OK_OPTION) {
+            String productName = nameFld.getText().trim();
+            String stockText = stockFld.getText().trim();
+            String priceText = priceFld.getText().trim();
+
+            // Validate product name length
+            if (productName.length() > 30) {
+                JOptionPane.showMessageDialog(null,
+                        "Product name cannot exceed 30 characters. Current length: " + productName.length(),
+                        "ADD PRODUCT ERROR",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Validate that name is not empty
+            if (productName.isEmpty()) {
+                JOptionPane.showMessageDialog(null,
+                        "Product name cannot be empty.",
+                        "ADD PRODUCT ERROR",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Validate that stock is not empty
+            if (stockText.isEmpty()) {
+                JOptionPane.showMessageDialog(null,
+                        "Product stock cannot be empty.",
+                        "ADD PRODUCT ERROR",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Validate that price is not empty
+            if (priceText.isEmpty()) {
+                JOptionPane.showMessageDialog(null,
+                        "Product price cannot be empty.",
+                        "ADD PRODUCT ERROR",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Validate stock is a valid integer
+            int stock;
             try {
-                // Get the input values
-                String name = nameFld.getText().trim();
+                stock = Integer.parseInt(stockText);
+                if (stock < 0) {
+                    JOptionPane.showMessageDialog(null,
+                            "Product stock must be a non-negative integer.",
+                            "ADD PRODUCT ERROR",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null,
+                        "Product stock must be a valid integer.",
+                        "ADD PRODUCT ERROR",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Validate price is a valid float/double
+            double price;
+            try {
+                price = Double.parseDouble(priceText);
+                if (price < 0) {
+                    JOptionPane.showMessageDialog(null,
+                            "Product price must be a non-negative number.",
+                            "ADD PRODUCT ERROR",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null,
+                        "Product price must be a valid number.",
+                        "ADD PRODUCT ERROR",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            System.out.println(nameFld.getText());
+            System.out.println(stockFld.getText());
+            System.out.println(priceFld.getText());
+        }
+    }//GEN-LAST:event_addBtnActionPerformed
+
+    private void editBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editBtnActionPerformed
+        if(table.getSelectedRow() >= 0){
+            JTextField nameFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 0) + "");
+            JTextField stockFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 1) + "");
+            JTextField priceFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 2) + "");
+
+            designer(nameFld, "PRODUCT NAME");
+            designer(stockFld, "PRODUCT STOCK");
+            designer(priceFld, "PRODUCT PRICE");
+
+            Object[] message = {
+                    "Edit Product Details:", nameFld, stockFld, priceFld
+            };
+
+            int result = JOptionPane.showConfirmDialog(null, message, "EDIT PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+
+            if (result == JOptionPane.OK_OPTION) {
+                String productName = nameFld.getText().trim();
                 String stockText = stockFld.getText().trim();
                 String priceText = priceFld.getText().trim();
 
-                // Validate inputs
-                if (name.isEmpty() || stockText.isEmpty() || priceText.isEmpty()) {
-                    logValidationFailure("Attempted to add product with missing fields: " +
-                            "Name='" + name + "', Stock='" + stockText + "', Price='" + priceText + "'");
-                    JOptionPane.showMessageDialog(null, "Please fill in all fields.", "Error", JOptionPane.ERROR_MESSAGE);
+                // Validate product name length
+                if (productName.length() > 30) {
+                    JOptionPane.showMessageDialog(null,
+                            "Product name cannot exceed 30 characters. Current length: " + productName.length(),
+                            "EDIT PRODUCT ERROR",
+                            JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                // Parse numeric values
-                int stock = Integer.parseInt(stockText);
-                double price = Double.parseDouble(priceText);
-
-                // Validate numeric ranges
-                if (stock < 0) {
-                    logValidationFailure("Attempted to add product with negative stock: " + stock + " for product '" + name + "'");
-                    JOptionPane.showMessageDialog(null, "Stock cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
+                // Validate that name is not empty
+                if (productName.isEmpty()) {
+                    JOptionPane.showMessageDialog(null,
+                            "Product name cannot be empty.",
+                            "EDIT PRODUCT ERROR",
+                            JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                if (price < 0) {
-                    logValidationFailure("Attempted to add product with negative price: " + price + " for product '" + name + "'");
-                    JOptionPane.showMessageDialog(null, "Price cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
+                // Validate that stock is not empty
+                if (stockText.isEmpty()) {
+                    JOptionPane.showMessageDialog(null,
+                            "Product stock cannot be empty.",
+                            "EDIT PRODUCT ERROR",
+                            JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                // Add product to database
-                sqlite.addProduct(name, stock, price);
-                logSecurityEvent("Product '" + name + "' added successfully.");
+                // Validate that price is not empty
+                if (priceText.isEmpty()) {
+                    JOptionPane.showMessageDialog(null,
+                            "Product price cannot be empty.",
+                            "EDIT PRODUCT ERROR",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
 
-
-                // Refresh the table to show the new product
-                init();
-
-                // Show success message
-                JOptionPane.showMessageDialog(null, "Product '" + name + "' added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-
-            } catch (NumberFormatException e) {
-                logValidationFailure("Invalid number format for stock or price. Stock='" + stockFld.getText() + "', Price='" + priceFld.getText() + "'");
-                JOptionPane.showMessageDialog(null, "Please enter valid numbers for stock and price.", "Error", JOptionPane.ERROR_MESSAGE);
-            } catch (Exception e) {
-                logValidationFailure("Unexpected error during add product: " + e.getMessage());
-                JOptionPane.showMessageDialog(null, "Error adding product: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }//GEN-LAST:event_addBtnActionPerformed
-    private void editBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editBtnActionPerformed
-        if (table.getSelectedRow() >= 0) {
-            // Declare here so we can use them in the catch block
-            JTextField nameFld = null;
-            JTextField stockFld = null;
-            JTextField priceFld = null;
-
-
-            try {
-                // Get current values from selected row
-                String currentName = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
-                String currentStock = tableModel.getValueAt(table.getSelectedRow(), 1).toString();
-                String currentPrice = tableModel.getValueAt(table.getSelectedRow(), 2).toString();
-
-                nameFld = new JTextField(currentName);
-                stockFld = new JTextField(currentStock);
-                priceFld = new JTextField(currentPrice);
-
-                designer(nameFld, "PRODUCT NAME");
-                designer(stockFld, "PRODUCT STOCK");
-                designer(priceFld, "PRODUCT PRICE");
-
-                Object[] message = {
-                        "Edit Product Details:", nameFld, stockFld, priceFld
-                };
-
-                int result = JOptionPane.showConfirmDialog(null, message, "EDIT PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
-
-                if (result == JOptionPane.OK_OPTION) {
-                    // Get the input values
-                    String newName = nameFld.getText().trim();
-                    String stockText = stockFld.getText().trim();
-                    String priceText = priceFld.getText().trim();
-
-                    // Validate inputs
-                    if (newName.isEmpty() || stockText.isEmpty() || priceText.isEmpty()) {
-                        logValidationFailure("Attempted to edit product with missing fields: " +
-                                "NewName='" + newName + "', Stock='" + stockText + "', Price='" + priceText + "'");
-                        JOptionPane.showMessageDialog(null, "Please fill in all fields.", "Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-
-                    // Parse numeric values
-                    int stock = Integer.parseInt(stockText);
-                    double price = Double.parseDouble(priceText);
-
-                    // Validate numeric ranges
+                // Validate stock is a valid integer
+                int stock;
+                try {
+                    stock = Integer.parseInt(stockText);
                     if (stock < 0) {
-                        logValidationFailure("Attempted to edit product with negative stock: " + stock + " for product '" + newName + "'");
-                        JOptionPane.showMessageDialog(null, "Stock cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(null,
+                                "Product stock must be a non-negative integer.",
+                                "EDIT PRODUCT ERROR",
+                                JOptionPane.ERROR_MESSAGE);
                         return;
                     }
-
-                    if (price < 0) {
-                        logValidationFailure("Attempted to edit product with negative price: " + price + " for product '" + newName + "'");
-                        JOptionPane.showMessageDialog(null, "Price cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-
-                    // Update product in database
-                    sqlite.updateProduct(currentName, newName, stock, price);
-                    logSecurityEvent("Product '" + currentName + "' edited successfully.");
-
-                    // Refresh the table
-                    init();
-
-                    // Show success message
-                    JOptionPane.showMessageDialog(null, "Product updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                } catch (NumberFormatException e) {
+                    JOptionPane.showMessageDialog(null,
+                            "Product stock must be a valid integer.",
+                            "EDIT PRODUCT ERROR",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
 
-            } catch (NumberFormatException e) {
-                String stockVal = stockFld != null ? stockFld.getText() : "null";
-                String priceVal = priceFld != null ? priceFld.getText() : "null";
-                logValidationFailure("Invalid number format while editing product. Stock='" + stockVal + "', Price='" + priceVal + "'");
-                JOptionPane.showMessageDialog(null, "Please enter valid numbers for stock and price.", "Error", JOptionPane.ERROR_MESSAGE);
+                // Validate price is a valid float/double
+                double price;
+                try {
+                    price = Double.parseDouble(priceText);
+                    if (price < 0) {
+                        JOptionPane.showMessageDialog(null,
+                                "Product price must be a non-negative number.",
+                                "EDIT PRODUCT ERROR",
+                                JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                    JOptionPane.showMessageDialog(null,
+                            "Product price must be a valid number.",
+                            "EDIT PRODUCT ERROR",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
 
-            } catch (Exception e) {
-                logValidationFailure("Unexpected error during edit product: " + e.getMessage());
-                JOptionPane.showMessageDialog(null, "Error updating product: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                System.out.println(nameFld.getText());
+                System.out.println(stockFld.getText());
+                System.out.println(priceFld.getText());
             }
-
-        } else {
-            logValidationFailure("Attempted to edit product with no row selected.");
-            JOptionPane.showMessageDialog(null, "Please select a product to edit.", "No Selection", JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_editBtnActionPerformed
 
