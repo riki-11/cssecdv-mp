@@ -11,6 +11,7 @@ import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import Service.AuthorizationManager;
 
 public class Login extends javax.swing.JPanel {
 
@@ -127,6 +128,7 @@ public class Login extends javax.swing.JPanel {
             int role = user.getRole();
 
 //            frame.setCurrentUser(username);
+            AuthorizationManager.setCurrentUser(user);
 
             frame.hideButtons(role);
             frame.mainNav(role, username, result.lastUsed);

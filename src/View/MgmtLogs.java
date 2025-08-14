@@ -9,6 +9,7 @@ import Controller.SQLite;
 import Model.Logs;
 import java.util.ArrayList;
 import javax.swing.table.DefaultTableModel;
+import Service.AuthorizationManager;
 
 /**
  *
@@ -31,6 +32,10 @@ public class MgmtLogs extends javax.swing.JPanel {
     }
 
     public void init(){
+        if (!AuthorizationManager.canViewLogs()) {
+            return;
+        }
+
         //      CLEAR TABLE
         for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
             tableModel.removeRow(0);

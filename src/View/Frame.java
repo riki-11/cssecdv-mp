@@ -12,6 +12,8 @@ import java.awt.Dimension;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import javax.swing.*;
+import Service.AuthorizationManager;
+
 
 public class Frame extends javax.swing.JFrame {
 
@@ -306,6 +308,7 @@ public class Frame extends javax.swing.JFrame {
     private void logoutBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logoutBtnActionPerformed
         currentUsername = null;
         currentUserRole = 0;
+        AuthorizationManager.clearCurrentUser();
         frameView.show(Container, "loginPnl");
     }//GEN-LAST:event_logoutBtnActionPerformed
 

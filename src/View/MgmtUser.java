@@ -18,6 +18,8 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import Service.PasswordStrengthChecker;
 import dto.PasswordCheckResult;
+import Service.AuthorizationManager;
+
 
 
 /**
@@ -226,6 +228,11 @@ public class MgmtUser extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void editRoleBtnActionPerformed(java.awt.event.ActionEvent evt) {
+
+        if (!AuthorizationManager.canEditUserRoles()) {
+            return;
+        }
+
         if (table.getSelectedRow() < 0) {
             logValidationFailure("Attempted edit user without selecting user");
             JOptionPane.showMessageDialog(null, "No user selected!", "Error", JOptionPane.ERROR_MESSAGE);
@@ -269,6 +276,10 @@ public class MgmtUser extends javax.swing.JPanel {
         if (table.getSelectedRow() < 0) {
             logValidationFailure("Attempted delete without selecting user");
             JOptionPane.showMessageDialog(null, "No user selected!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!AuthorizationManager.canDeleteUsers()) {
             return;
         }
 

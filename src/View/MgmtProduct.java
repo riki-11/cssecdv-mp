@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
+import Service.AuthorizationManager;
 
 /**
  *
@@ -348,6 +349,10 @@ public class MgmtProduct extends javax.swing.JPanel {
 
 
     private void addBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addBtnActionPerformed
+        if (!AuthorizationManager.canAddProducts()) {
+            return;
+        }
+
         JTextField nameFld = new JTextField();
         JTextField stockFld = new JTextField();
         JTextField priceFld = new JTextField();
@@ -448,6 +453,10 @@ public class MgmtProduct extends javax.swing.JPanel {
     }//GEN-LAST:event_addBtnActionPerformed
 
     private void editBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editBtnActionPerformed
+        if (!AuthorizationManager.canEditProducts()) {
+            return;
+        }
+
         if(table.getSelectedRow() >= 0){
             JTextField nameFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 0) + "");
             JTextField stockFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 1) + "");
@@ -550,6 +559,10 @@ public class MgmtProduct extends javax.swing.JPanel {
     }//GEN-LAST:event_editBtnActionPerformed
 
     private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteBtnActionPerformed
+        if (!AuthorizationManager.canDeleteProducts()) {
+            return;
+        }
+
         if (table.getSelectedRow() >= 0) {
             String productName = tableModel.getValueAt(table.getSelectedRow(), 0).toString();
 
