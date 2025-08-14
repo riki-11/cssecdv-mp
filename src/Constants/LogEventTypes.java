@@ -16,7 +16,7 @@ public class LogEventTypes {
     // General security events
     public static final String SECURITY_VIOLATION = "SECURITY_VIOLATION";
 
-
+    public static final String ACTION_SUCCESS = "ACTION_SUCCESS";
     public static final String USER_DELETED = "USER_DELETED";
     public static final String DATABASE_ERROR = "DATABASE_ERROR";
     public static final String USER_ROLE_CHANGED = "USER_ROLE_CHANGED";

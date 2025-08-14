@@ -10,7 +10,6 @@ import Controller.SQLite;
 import Model.Product;
 import java.util.ArrayList;
 import javax.swing.JOptionPane;
-import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
@@ -53,6 +52,14 @@ public class MgmtProduct extends javax.swing.JPanel {
         }
 
         configureButtonVisibility(userRole);
+    }
+
+    private void logSecurityEvent(String message) {
+        sqlite.addSecurityLog(
+                LogEventTypes.ACTION_SUCCESS,
+                currentUsername != null ? currentUsername : "Unknown User",
+                message
+        );
     }
 
     private void logValidationFailure(String reason) {
@@ -389,6 +396,8 @@ public class MgmtProduct extends javax.swing.JPanel {
 
                 // Add product to database
                 sqlite.addProduct(name, stock, price);
+                logSecurityEvent("Product '" + name + "' added successfully.");
+
 
                 // Refresh the table to show the new product
                 init();
